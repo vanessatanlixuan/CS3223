@@ -1,8 +1,0 @@
-6
-108
-flno INTEGER 120000 PK 4
-from STRING 20 NK 40
-to STRING 20 NK 40
-distance INTEGER 50000 NK 4
-departs REAL 5 NK 10
-arrives REAL 5 NK 10
