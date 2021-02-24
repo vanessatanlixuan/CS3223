@@ -1,0 +1,8 @@
+6
+15000
+flno INTEGER 15000 PK 5
+from STRING 18 NK 5
+to STRING 18 NK 5
+distance INTEGER 6 NK 6
+departs TIME 4 NK 4
+arrives TIME 4 NK 4
