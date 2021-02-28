@@ -1,4 +1,4 @@
-package qp.operators.blocknestedjoin;
+package qp.operators;
 
 import java.util.HashMap;
 

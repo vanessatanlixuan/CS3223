@@ -3,17 +3,14 @@ package qp.operators;
 import java.io.File;
 import java.util.HashMap;
 
-import qp.operators.blocknestedjoin.JoinAttributeAssigner;
-import qp.operators.blocknestedjoin.RightTableGenerator;
+import qp.operators.blocknestedjoin.Parameters;
 import qp.operators.blocknestedjoin.TupleSelector;
 import qp.utils.Batch;
 
 public class BlockNestedJoin extends Join {
 
-    private int batchSize;
-    private int leftIndex, rightIndex;
-    private int leftCursor, rightCursor;
-    private boolean eosLeft, eosRight;
+    private Parameters parameters;
+    private static final String header = "BNJtemp-";
 
     /**
      * Instantiates a new join operator using block-based nested loop algorithm.
@@ -27,15 +24,6 @@ public class BlockNestedJoin extends Join {
         numBuff = jn.getNumBuff();
     }
 
-    private void init() {
-        // Initializes the cursors of input buffers for both sides.
-        leftCursor = 0;
-        rightCursor = 0;
-        eosLeft = false;
-        // Right stream would be repetitively scanned. If it reaches the end, we have to start new scan.
-        eosRight = true;
-    }
-
     /**
      * Opens this operator by performing the following operations:
      * 1. Finds the index of the join attributes;
@@ -46,18 +34,23 @@ public class BlockNestedJoin extends Join {
      */
     @Override
     public boolean open() {
+        parameters = new Parameters();
+        // Initializes the cursors of input buffers for both sides.
+        parameters.setLeftCursor(0);
+        parameters.setRightCursor(0);
+        // Right stream would be repetitively scanned. If it reaches the end, we have to start new scan.
+        parameters.setEosLeft(false);
+        parameters.setEosRight(true);
 
-        batchSize = Batch.getPageSize() / schema.getTupleSize();
+        parameters.setBatchSize(Batch.getPageSize() / schema.getTupleSize());
 
         // Gets the join attribute from left & right table.
         HashMap<JoinAttributeAssigner.AttributeKey,Integer> joinAttributes =
                 JoinAttributeAssigner.getJoinAttributes(getCondition(), left, right);
-        leftIndex = joinAttributes.get(JoinAttributeAssigner.AttributeKey.LEFT);
-        rightIndex = joinAttributes.get(JoinAttributeAssigner.AttributeKey.RIGHT);
+        parameters.setLeftIndex(joinAttributes.get(JoinAttributeAssigner.AttributeKey.LEFT));
+        parameters.setRightIndex(joinAttributes.get(JoinAttributeAssigner.AttributeKey.RIGHT));
 
-        init();
-
-        return RightTableGenerator.createRightTable(left, right);
+        return TableGenerator.createTable(header, left, right);
     }
 
     /**
@@ -68,17 +61,12 @@ public class BlockNestedJoin extends Join {
     @Override
     public Batch next() {
         // Returns empty if the left table reaches end-of-stream.
-        if (eosLeft) {
+        if (parameters.getEosLeft()) {
             close();
             return null;
         }
 
-        return TupleSelector.getTuplesMatchingCondition(
-                batchSize, numBuff,
-                leftCursor, rightCursor,
-                eosLeft, eosRight,
-                leftIndex, rightIndex, left
-        );
+        return TupleSelector.getTuplesMatchingCondition(numBuff, left, parameters);
     }
 
     /**
@@ -88,7 +76,7 @@ public class BlockNestedJoin extends Join {
      */
     @Override
     public boolean close() {
-        File f = new File(RightTableGenerator.getTableName());
+        File f = new File(TableGenerator.getTableName());
         return f.delete();
     }
 }

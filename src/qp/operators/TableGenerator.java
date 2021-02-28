@@ -1,17 +1,16 @@
-package qp.operators.blocknestedjoin;
+package qp.operators;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 
-import qp.operators.Operator;
 import qp.utils.Batch;
 
-public class RightTableGenerator {
+public class TableGenerator {
     private static int fileID = 0;
     private static String tableName = "";
 
-    public static boolean createRightTable(Operator left, Operator right) {
+    public static boolean createTable(String header, Operator left, Operator right) {
         Batch rightPage;
 
         // Materializes the right table for the algorithm to perform.
@@ -24,7 +23,7 @@ public class RightTableGenerator {
          * from right into a file.
          */
         fileID++;
-        tableName = "BNJtemp-" + fileID;
+        tableName = header + fileID;
         try {
             ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(tableName));
             rightPage = right.next();
