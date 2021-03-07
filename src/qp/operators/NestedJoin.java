@@ -49,18 +49,18 @@ public class NestedJoin extends Join {
         /** find indices attributes of join conditions **/
         leftindex = new ArrayList<>();
         rightindex = new ArrayList<>();
-        for (Condition con : conditionList) {
-            Attribute leftattr = con.getLhs();
-            Attribute rightattr = (Attribute) con.getRhs();
-            leftindex.add(left.getSchema().indexOf(leftattr));
+        for (Condition con : conditionList) { //one example of condition would be table1.ID = table2.ID
+            Attribute leftattr = con.getLhs(); //get LHS of condition i.e. attribute "ID" of table 1
+            Attribute rightattr = (Attribute) con.getRhs(); //get RHS of condition i.e. attribute "ID" of table 2
+            leftindex.add(left.getSchema().indexOf(leftattr)); //get the position index of attr of left table
             rightindex.add(right.getSchema().indexOf(rightattr));
         }
         Batch rightpage;
 
         /** initialize the cursors of input buffers **/
-        lcurs = 0;
+        lcurs = 0; //left cursor
         rcurs = 0;
-        eosl = false;
+        eosl = false; //end of stream left = false
         /** because right stream is to be repetitively scanned
          ** if it reached end, we have to start new scan
          **/
@@ -80,7 +80,7 @@ public class NestedJoin extends Join {
             rfname = "NJtemp-" + String.valueOf(filenum);
             try {
                 ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(rfname));
-                while ((rightpage = right.next()) != null) {
+                while ((rightpage = right.next()) != null) { //while the right table still has pages
                     out.writeObject(rightpage);
                 }
                 out.close();

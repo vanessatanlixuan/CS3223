@@ -19,9 +19,9 @@ public class Join extends Operator {
     int nodeIndex;                       // Each join node is given a number
 
     public Join(Operator left, Operator right, int type) {
-        super(type);
-        this.left = left;
-        this.right = right;
+        super(type);  //akin to this.optype = type;
+        this.left = left; //left table
+        this.right = right; //right table
         conditionList = new ArrayList<>();
     }
 
@@ -81,7 +81,7 @@ public class Join extends Operator {
     }
 
     public Condition getCondition() {
-        assert (conditionList.size() > 0);
+        assert (conditionList.size() > 0); //assume that condition list is not empty, if not will throw assertion error
         return conditionList.get(0);
     }
 

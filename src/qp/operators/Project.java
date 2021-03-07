@@ -1,5 +1,5 @@
 /**
- * To projec out the required attributes from the result
+ * To project out the required attributes from the result
  **/
 
 package qp.operators;
