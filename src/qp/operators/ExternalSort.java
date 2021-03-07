@@ -142,10 +142,49 @@ public class ExternalSort extends Operator {
         Tuple currTup;
         for(Batch b : pagesInBuffer){
             //add all the tuples in page into tuples in the run
-            tupInRun.addAll(b);
+            for (int j = 0; j < batchSize; j++){
+                currTup = b.get(j);
+                if ((currTup == null) == false){
+                    tupInRun.add(currTup);
+                }
+                else
+                    continue;
+            }
         }
         //now we have tupInRun list containing all the tuples to be sorted in a run
-        
+        tupComparator tupleCompare = new tupComparator();
+        Collections.sort(tupInRun, )
     }
 
+}
+
+class tupComparator implements Comparator<Tuple>{
+    //taken from tuple class
+    /**
+     * Comparing tuples in different tables with multiple conditions, used for join condition checking
+     **/
+    public static int compare(Tuple left, Tuple right, ArrayList<Integer> leftIndex, ArrayList<Integer> rightIndex) {
+        if (leftIndex.size() != rightIndex.size()) {
+            System.out.println("Tuple: Unknown comparision of the tuples");
+            System.exit(1);
+            return 0;
+        }
+        for (int i = 0; i < leftIndex.size(); ++i) {
+            Object leftdata = left.dataAt(leftIndex.get(i));
+            Object rightdata = right.dataAt(rightIndex.get(i));
+            if (leftdata.equals(rightdata)) continue;
+            if (leftdata instanceof Integer) {
+                return ((Integer) leftdata).compareTo((Integer) rightdata);
+            } else if (leftdata instanceof String) {
+                return ((String) leftdata).compareTo((String) rightdata);
+            } else if (leftdata instanceof Float) {
+                return ((Float) leftdata).compareTo((Float) rightdata);
+            } else {
+                System.out.println("Tuple: Unknown comparision of the tuples");
+                System.exit(1);
+                return 0;
+            }
+        }
+        return 0;
+    }
 }
