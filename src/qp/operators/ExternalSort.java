@@ -11,6 +11,8 @@ import qp.utils.Tuple;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 public class ExternalSort extends Operator {
     
@@ -18,7 +20,7 @@ public class ExternalSort extends Operator {
     ArrayList<Attribute> attrset; //the attributes that we are sorting on
     int batchSize; //the size of every output page
     int numBuff; //number of buffer pages
-
+    int numRuns; //number of sorted runs
     Batch inBatch; //the page containing the input
     Batch outBatch; //the page containing the output
 
@@ -94,10 +96,10 @@ public class ExternalSort extends Operator {
         //   if there is empty input buffer page, load one more page into memory
         //6. when buffer page for output is full, write out to disk
         //7. 
-        generateSortedRuns();
+        numRuns = generateSortedRuns();
     }
 
-    public void generateSortedRuns() { 
+    public int generateSortedRuns() { //returns number of sorted runs
         boolean eos = false; //have we reached the end of the table yet?
         int index = 0; //index for first filename
         //numRounds = number of internal sort rounds needed 
@@ -108,12 +110,14 @@ public class ExternalSort extends Operator {
         Batch incomingPage;
 
         int counter = 0;
+
         while (eos == false){ //while there are still pages in table(base)
             incomingPage = base.next();
+            // if the page being read is null aka no more pages
             if(incomingPage == null){
                 index ++;
                 //sort the pages already in Buffer + write out
-                internalSort(pagesInBuffer, index);
+                internalSort(pagesInBuffer, index); //counter = num of pages that buffer need to output
                 //clear the pages in buffer
                 pagesInBuffer.clear();
                 eos = true;
@@ -133,6 +137,7 @@ public class ExternalSort extends Operator {
                 pagesInBuffer.clear();
             }
         }
+        return index;
     }
 
     public void internalSort(ArrayList<Batch> pagesInBuffer, int fileIndex){
@@ -152,8 +157,52 @@ public class ExternalSort extends Operator {
             }
         }
         //now we have tupInRun list containing all the tuples to be sorted in a run
-        tupComparator tupleCompare = new tupComparator();
-        Collections.sort(tupInRun, )
+        tupComparator tupleCompare = new tupComparator(attrIndex);
+        Collections.sort(tupInRun, tupleCompare);
+        //output to fileoutputstream
+        ArrayList<Batch> listOfBatches = generateListOfBatches(tupInRun, batchSize);
+        int cntr = 0;
+        Iterator<Batch> iter = listOfBatches.iterator();
+        while(iter.hasNext()){
+            cntr++; 
+            Batch currBatch = iter.next();
+            try{
+                String fname = "ESrun-" + String.valueOf(fileIndex) + "-page-" + String.valueOf(cntr);
+                FileOutputStream file = new FileOutputStream(fname);
+                ObjectOutputStream out = new ObjectOutputStream(file);
+                out.writeObject(currBatch);
+                out.close();
+            }
+            catch (IOException io){
+                System.out.println("Error writing out to temp file for ES round 1 - sorted runs.");
+            } 
+        }
+    }
+
+    public ArrayList<Batch> generateListOfBatches(ArrayList<Tuple> tupInRun, int batchSize){
+        ArrayList<Batch> listOfBatches = new ArrayList<Batch>();
+        ArrayList<Tuple> oneBatch = new ArrayList<Tuple>();
+        //List<Tuple> tempBatch = new ArrayList<Tuple>();
+        int ctr = 0;
+        for (int i = 0; i < tupInRun.size(); i++){
+            while(ctr < batchSize){
+                Tuple currTup = tupInRun.get(i);
+                ctr ++;
+                oneBatch.add(currTup); 
+            }
+            Batch newBatch = createBatch(oneBatch);
+            listOfBatches.add(newBatch);
+        }
+        return listOfBatches;
+    }
+
+    public Batch createBatch(ArrayList<Tuple> oneBatch){
+        int numTuples = oneBatch.size(); 
+        Batch newBatch = new Batch(numTuples);
+        for (Tuple tup: oneBatch){
+            newBatch.add(tup);
+        }
+        return newBatch;
     }
 
 }
@@ -163,15 +212,25 @@ class tupComparator implements Comparator<Tuple>{
     /**
      * Comparing tuples in different tables with multiple conditions, used for join condition checking
      **/
-    public static int compare(Tuple left, Tuple right, ArrayList<Integer> leftIndex, ArrayList<Integer> rightIndex) {
+    //list of indices of attributes to sort by
+    List<Integer> attrIndex = new ArrayList<Integer>();
+
+    //constructor: input: array
+    public tupComparator(int[] attrIndexList){
+        //convert array into arraylist to use it in compare
+        Collections.addAll(attrIndex, attrIndexList);
+    }
+    public static int compare(Tuple left, Tuple right, ArrayList<Integer> attrIndex) {
+        /*
         if (leftIndex.size() != rightIndex.size()) {
             System.out.println("Tuple: Unknown comparision of the tuples");
             System.exit(1);
             return 0;
         }
-        for (int i = 0; i < leftIndex.size(); ++i) {
-            Object leftdata = left.dataAt(leftIndex.get(i));
-            Object rightdata = right.dataAt(rightIndex.get(i));
+        */
+        for (int i = 0; i < attrIndex.size(); ++i) {
+            Object leftdata = left.dataAt(attrIndex.get(i));
+            Object rightdata = right.dataAt(attrIndex.get(i));
             if (leftdata.equals(rightdata)) continue;
             if (leftdata instanceof Integer) {
                 return ((Integer) leftdata).compareTo((Integer) rightdata);
@@ -180,7 +239,7 @@ class tupComparator implements Comparator<Tuple>{
             } else if (leftdata instanceof Float) {
                 return ((Float) leftdata).compareTo((Float) rightdata);
             } else {
-                System.out.println("Tuple: Unknown comparision of the tuples");
+                System.out.println("Tuple: Unknown comparision of the tuples in ExternalSort");
                 System.exit(1);
                 return 0;
             }
