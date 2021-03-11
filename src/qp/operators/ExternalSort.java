@@ -4,15 +4,13 @@ to perform external sort on a relation table
 
 package qp.operators;
 
-import qp.utils.Attribute;
-import qp.utils.Batch;
-import qp.utils.Condition;
-import qp.utils.Tuple;
+import qp.utils.*;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
+import java.util.Collections;
+import java.util.Comparator;
 
 public class ExternalSort extends Operator {
     
@@ -30,10 +28,11 @@ public class ExternalSort extends Operator {
      * index of the attributes in the base operator(relation/table)
      * * that are to be sorted
      **/
-    int[] attrIndex;
+    //int[] attrIndex;
+    ArrayList<Integer> attrIndex;
 
 
-    public ExternalSort(Operator base, ArrayList<Attribute> as, String type) {
+    public ExternalSort(Operator base, ArrayList<Attribute> as, int type) {
         super(type);
         this.base = base;
         this.attrset = as;
@@ -75,12 +74,12 @@ public class ExternalSort extends Operator {
 
 
         //create an int array consisting of indices of req'd attributes to sort by
-        attrIndex = new int[attrset.size()]; 
+        attrIndex = new ArrayList<Integer>(); 
         //for loop to obtain indices of attributes
         for (int i = 0; i < attrset.size(); i++) {
             Attribute attr = attrset.get(i);
             int index = baseSchema.indexOf(attr.getBaseAttribute()); //get the index of the attribute
-            attrIndex[i] = index;
+            attrIndex.add(index);
         }
         
         //1. load tuples of schema into pages
@@ -213,14 +212,15 @@ class tupComparator implements Comparator<Tuple>{
      * Comparing tuples in different tables with multiple conditions, used for join condition checking
      **/
     //list of indices of attributes to sort by
-    List<Integer> attrIndex = new ArrayList<Integer>();
+    ArrayList<Integer> attrIndex;
 
     //constructor: input: array
-    public tupComparator(int[] attrIndexList){
+    public tupComparator(ArrayList<Integer> attrIndexList){
         //convert array into arraylist to use it in compare
-        Collections.addAll(attrIndex, attrIndexList);
+        this.attrIndex = attrIndexList;
     }
-    public static int compare(Tuple left, Tuple right, ArrayList<Integer> attrIndex) {
+
+    public int compare(Tuple left, Tuple right) {
         /*
         if (leftIndex.size() != rightIndex.size()) {
             System.out.println("Tuple: Unknown comparision of the tuples");
