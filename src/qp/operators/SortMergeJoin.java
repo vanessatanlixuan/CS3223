@@ -5,10 +5,12 @@ import java.util.HashMap;
 import qp.utils.Batch;
 import qp.utils.Tuple;
 import qp.operators.nestedjoin.Parameters;
+import qp.operators.nestedjoin.ReadNextTuple;
 
 public class SortMergeJoin extends Join {
 
     private Parameters parameters;
+    private static final String header = "SMJtemp-";
 
     /**
      * Instantiates a new join operator using block-based nested loop algorithm.
@@ -51,7 +53,8 @@ public class SortMergeJoin extends Join {
         parameters.setLeftIndex(joinAttributes.get(JoinAttributeAssigner.AttributeKey.LEFT));
         parameters.setRightIndex(joinAttributes.get(JoinAttributeAssigner.AttributeKey.RIGHT));
         parameters.setAttributeType(left.getSchema().typeOf(getCondition().getLhs()));
-        return super.open();
+        
+        return TableGenerator.createTable(header, left, right);
     }
 
     /**
@@ -76,7 +79,7 @@ public class SortMergeJoin extends Join {
             }
             parameters.setLeftBatch(leftBatch);
             
-            Tuple leftTuple = readNextLeftTuple();
+            Tuple leftTuple = ReadNextTuple.readNextLeftTuple(parameters, left);
             parameters.setLeftTuple(leftTuple);
             if (leftTuple == null) {
                 parameters.setEosLeft(true);
@@ -92,7 +95,7 @@ public class SortMergeJoin extends Join {
             }
             parameters.setRightBatch(rightBatch);
 
-            Partition.createNextRightPartition(parameters, () -> readNextRightTuple());
+            Partition.createNextRightPartition(parameters, () -> ReadNextTuple.readNextRightTuple(parameters, right));
             if (parameters.getRightPartition().isEmpty()) {
                 parameters.setEosRight(true);
                 return null;
@@ -122,7 +125,7 @@ public class SortMergeJoin extends Join {
                     Tuple rightTuple = parameters.getRightPartition().elementAt(parameters.getRightPartitionIndex());
                     parameters.setRightTuple(rightTuple);
                 } else {
-                    Tuple nextLeftTuple = readNextLeftTuple();
+                    Tuple nextLeftTuple = ReadNextTuple.readNextLeftTuple(parameters, left);
                     if (nextLeftTuple == null) {
                         parameters.setEosLeft(true);
                         break;
@@ -143,7 +146,7 @@ public class SortMergeJoin extends Join {
                         parameters.setRightTuple(rightTuple);
                     } else {
                         // Proceeds and creates a new right partition otherwise.
-                        Partition.createNextRightPartition(parameters, () -> readNextRightTuple());
+                        Partition.createNextRightPartition(parameters, () -> ReadNextTuple.readNextRightTuple(parameters, right));
                         if (parameters.getRightPartition().isEmpty()) {
                             parameters.setEosRight(true);
                             break;
@@ -156,14 +159,14 @@ public class SortMergeJoin extends Join {
                     }
                 }
             } else if (comparisionResult < 0) {
-                Tuple leftTuple = readNextLeftTuple();
+                Tuple leftTuple = ReadNextTuple.readNextLeftTuple(parameters, left);
                 parameters.setLeftTuple(leftTuple);
                 if (leftTuple == null) {
                     parameters.setEosLeft(true);
                     break;
                 }
             } else {
-                Partition.createNextRightPartition(parameters, () -> readNextRightTuple());
+                Partition.createNextRightPartition(parameters, () -> ReadNextTuple.readNextRightTuple(parameters, right));
                 if (parameters.getRightPartition().isEmpty()) {
                     parameters.setEosRight(true);
                     break;
@@ -174,60 +177,7 @@ public class SortMergeJoin extends Join {
                 parameters.setRightTuple(rightTuple);
             }
         }
-
         return outBatch;
-    }
-
-    /**
-     * Reads the next tuple from left input batch.
-     *
-     * @return the next tuple if available; null otherwise.
-     */
-    private Tuple readNextLeftTuple() {
-        // Reads in another batch if necessary.
-        if (parameters.getLeftBatch() == null) {
-            parameters.setEosLeft(true);
-            return null;
-        } else if (parameters.getLeftCursor() == parameters.getLeftBatch().size()) {
-            parameters.setLeftBatch(left.next());
-            parameters.setLeftCursor(0);
-        }
-
-        // Checks whether the left batch still has tuples left.
-        if (parameters.getLeftBatch() == null || parameters.getLeftBatch().size() <= parameters.getLeftCursor()) {
-            parameters.setEosLeft(true);
-            return null;
-        }
-
-        // Reads in the next tuple from left batch.
-        Tuple nextLeftTuple = parameters.getLeftBatch().get(parameters.getLeftCursor());
-        parameters.setLeftCursor(parameters.getLeftCursor() + 1);
-        return nextLeftTuple;
-    }
-
-    /**
-     * Reads the next tuple from right input batch.
-     *
-     * @return the next tuple if available; null otherwise.
-     */
-    private Tuple readNextRightTuple() {
-        // Reads another batch if necessary.
-        if (parameters.getRightBatch() == null) {
-            return null;
-        } else if (parameters.getRightCursor() == parameters.getRightBatch().size()) {
-            parameters.setRightBatch(right.next());
-            parameters.setRightCursor(0);
-        }
-
-        // Checks whether the right batch still has tuples left.
-        if (parameters.getRightBatch() == null || parameters.getRightBatch().size() <= parameters.getRightCursor()) {
-            return null;
-        }
-
-        // Reads the next tuple.
-        Tuple next = parameters.getRightBatch().get(parameters.getRightCursor());
-        parameters.setRightCursor(parameters.getRightCursor() + 1);
-        return next;
     }
 
     /**
