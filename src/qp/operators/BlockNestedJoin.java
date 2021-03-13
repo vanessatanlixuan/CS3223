@@ -3,8 +3,8 @@ package qp.operators;
 import java.io.File;
 import java.util.HashMap;
 
-import qp.operators.blocknestedjoin.Parameters;
-import qp.operators.blocknestedjoin.TupleSelector;
+import qp.operators.nestedjoin.Parameters;
+import qp.operators.nestedjoin.TupleSelector;
 import qp.utils.Batch;
 
 public class BlockNestedJoin extends Join {

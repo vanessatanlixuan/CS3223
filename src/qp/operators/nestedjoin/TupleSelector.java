@@ -1,4 +1,4 @@
-package qp.operators.blocknestedjoin;
+package qp.operators.nestedjoin;
 
 import java.io.EOFException;
 import java.io.FileInputStream;

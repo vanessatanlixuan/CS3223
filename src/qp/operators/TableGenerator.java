@@ -33,7 +33,7 @@ public class TableGenerator {
             }
             out.close();
         } catch (IOException io) {
-            System.out.println("BlockNestedJoin: writing the temporary file error");
+            System.out.println(header + "writing the temporary file error");
             return false;
         }
 

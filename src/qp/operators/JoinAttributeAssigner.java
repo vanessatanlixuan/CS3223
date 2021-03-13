@@ -2,7 +2,6 @@ package qp.operators;
 
 import java.util.HashMap;
 
-import qp.operators.Operator;
 import qp.utils.Attribute;
 import qp.utils.Condition;
 
