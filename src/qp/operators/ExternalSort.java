@@ -9,8 +9,11 @@ import qp.utils.*;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.PriorityQueue;
+import java.util.HashMap;
 
 public class ExternalSort extends Operator {
     
@@ -21,9 +24,11 @@ public class ExternalSort extends Operator {
     int numRuns; //number of sorted runs
     Batch inBatch; //the page containing the input
     Batch outBatch; //the page containing the output
+    int totalNumOfTuples;
+    int lastRoundIndex;
+    //lastPageIndexInEachRun stores the number of pages in each sorted run of round 0
 
-    //sortedRunAddr will store the address to where the sorted runs are in disk
-    ArrayList<Integer> sortedRunAddr = new ArrayList<Integer>();
+    Map<Integer, Integer> lastPageIndexInEachRun = new HashMap<Integer, Integer>();
     /**
      * index of the attributes in the base operator(relation/table)
      * * that are to be sorted
@@ -96,6 +101,7 @@ public class ExternalSort extends Operator {
         //6. when buffer page for output is full, write out to disk
         //7. 
         numRuns = generateSortedRuns();
+        merge();
     }
 
     public int generateSortedRuns() { //returns number of sorted runs
@@ -114,10 +120,11 @@ public class ExternalSort extends Operator {
             incomingPage = base.next();
             // if the page being read is null aka no more pages
             if(incomingPage == null){
-                index ++;
+                
                 //sort the pages already in Buffer + write out
                 internalSort(pagesInBuffer, index); //counter = num of pages that buffer need to output
                 //clear the pages in buffer
+                index ++;
                 pagesInBuffer.clear();
                 eos = true;
                 break;
@@ -127,9 +134,9 @@ public class ExternalSort extends Operator {
                 counter++;
             }
             else{
-                index++;
                 //sort the pagesInBuffer + write out
                 internalSort(pagesInBuffer, index);
+                index++;
                 //set counter back to 0
                 counter = 0;
                 //clear the pages in buffer
@@ -142,6 +149,9 @@ public class ExternalSort extends Operator {
     public void internalSort(ArrayList<Batch> pagesInBuffer, int fileIndex){
         //input arraylist of pages in the buffer
         //output: write out pages of sorted tuples
+        if(lastPageIndexInEachRun.containsKey(Integer.valueOf(fileIndex)) == false){
+            lastPageIndexInEachRun.put(fileIndex, 0);        
+        }
         ArrayList<Tuple> tupInRun = new ArrayList<Tuple>();
         Tuple currTup;
         for(Batch b : pagesInBuffer){
@@ -150,6 +160,7 @@ public class ExternalSort extends Operator {
                 currTup = b.get(j);
                 if ((currTup == null) == false){
                     tupInRun.add(currTup);
+                    totalNumOfTuples++;
                 }
                 else
                     continue;
@@ -163,25 +174,27 @@ public class ExternalSort extends Operator {
         int cntr = 0;
         Iterator<Batch> iter = listOfBatches.iterator();
         while(iter.hasNext()){
-            cntr++; 
             Batch currBatch = iter.next();
             try{
-                String fname = "ESrun-" + String.valueOf(fileIndex) + "-page-" + String.valueOf(cntr);
+                String fname = "ESrun-round-0-run-" + String.valueOf(fileIndex) + "-page-" + String.valueOf(cntr);
                 FileOutputStream file = new FileOutputStream(fname);
                 ObjectOutputStream out = new ObjectOutputStream(file);
                 out.writeObject(currBatch);
                 out.close();
+                   
             }
             catch (IOException io){
-                System.out.println("Error writing out to temp file for ES round 1 - sorted runs.");
+                System.out.println("Error writing out to temp file for ES round 0 - sorted runs.");
             } 
+            lastPageIndexInEachRun.replace(fileIndex, cntr);
+            cntr++;
         }
+
     }
 
     public ArrayList<Batch> generateListOfBatches(ArrayList<Tuple> tupInRun, int batchSize){
         ArrayList<Batch> listOfBatches = new ArrayList<Batch>();
         ArrayList<Tuple> oneBatch = new ArrayList<Tuple>();
-        //List<Tuple> tempBatch = new ArrayList<Tuple>();
         int ctr = 0;
         for (int i = 0; i < tupInRun.size(); i++){
             while(ctr < batchSize){
@@ -191,6 +204,7 @@ public class ExternalSort extends Operator {
             }
             Batch newBatch = createBatch(oneBatch);
             listOfBatches.add(newBatch);
+            oneBatch.clear();
         }
         return listOfBatches;
     }
@@ -204,6 +218,56 @@ public class ExternalSort extends Operator {
         return newBatch;
     }
 
+    public void recursivelyMerge(int currRoundNum, HashMap<Integer, Integer> lastPageIndexInEachMergingRun){
+        int currNumRuns = lastPageIndexInEachMergingRun.size();
+        int newRoundNum = currRoundNum +1;
+        HashMap<Integer, Integer> updatedLastPageIndexInEachMergingRun = merge(currRoundNum, lastPageIndexInEachMergingRun); //currRoundNum gives info on where is the thing stored
+        if (currNumRuns <= numBuff-1){
+            //able to merge within this run
+            //update the lastRoundIndex to find where the final results are stored in directory
+            this.lastRoundIndex = newRoundNum;
+        }
+        else{
+            recursivelyMerge(newRoundNum, updatedLastPageIndexInEachMergingRun);
+        }
+    }
+
+    public HashMap<Integer, Integer> merge(int currRoundNum, HashMap<Integer, Integer> lastPageIndexInEachMergingRun){
+        //currRoundIndex is the INDEX OF THE ROUND THAT WE WANT TO MERGE
+        int startRunIndex = 0;
+        int endRunIndex = startRunIndex + numBuff-1;
+        HashMap<Integer, Integer> newLastPageIndices = new HashMap<Integer, Integer>();
+        int newRunIndex = 0;
+        while(startRunIndex < numBuff-1){
+            if(endRunIndex > numRuns){
+                endRunIndex = numRuns;
+            }
+            int newLastPageNumberOfRun  = mergeRuns(startRunIndex, endRunIndex, currRoundNum, newRunIndex, lastPageIndexInEachMergingRun);
+            newLastPageIndices.put(newRunIndex, newLastPageNumberOfRun);
+            if(endRunIndex == numRuns){
+                break; //break out from while loop when all the sets of runs are merged within themselves
+            }
+            else{
+                startRunIndex = endRunIndex + 1; //then go through the while loop again
+            }
+            newRunIndex++;
+        }
+        return newLastPageIndices; //run index mapped to num pages in that run
+    }
+    /*
+    * return newLastPageNumberOfRun
+    * saves file with newRoundNum, newRunIndex, newPageNum(s)
+    */ 
+    public int mergeRuns(int startRunIndex, int endRunIndex, int currRoundNum, int newRunIndex, HashMap<Integer, Integer> lastPageIndexInEachMergingRun){
+        
+        for(int runIndex = startRunIndex; runIndex <= endRunIndex; runIndex++){
+            retrieveFile(currRoundNum, runIndex, page 0 of each run);
+            storeInBuffer();
+            
+        }
+    }
+
+    
 }
 
 class tupComparator implements Comparator<Tuple>{
