@@ -9,7 +9,6 @@ import qp.utils.*;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.PriorityQueue;
@@ -22,9 +21,12 @@ public class ExternalSort extends Operator {
     int batchSize; //the size of every output page
     int numBuff; //number of buffer pages
     int numRuns; //number of sorted runs
-    Batch inBatch; //the page containing the input
+    //Batch inBatch; //the page containing the input
     Batch outBatch; //the page containing the output
     int lastRoundIndex;
+    int lastSortedPage;
+    int nextOutputPage = 0;
+    boolean allSorted = false;
     //lastPageIndexInEachRun stores the number of pages in each sorted run of round 0
 
     HashMap<Integer, Integer> lastPageIndexInEachRun = new HashMap<Integer, Integer>();
@@ -101,7 +103,7 @@ public class ExternalSort extends Operator {
         //7. 
         generateSortedRuns();
         recursivelyMerge(0, lastPageIndexInEachRun);
-        
+        return this.allSorted;
     }
 
     public void generateSortedRuns() { //returns number of sorted runs
@@ -159,8 +161,9 @@ public class ExternalSort extends Operator {
                 if ((currTup == null) == false){
                     tupInRun.add(currTup);
                 }
-                else
+                else{
                     continue;
+                }
             }
         }
         //now we have tupInRun list containing all the tuples to be sorted in a run
@@ -216,13 +219,14 @@ public class ExternalSort extends Operator {
     }
 
     public void recursivelyMerge(int currRoundNum, HashMap<Integer, Integer> lastPageIndexInEachMergingRun){
-        int currNumRuns = lastPageIndexInEachMergingRun.size();
         int newRoundNum = currRoundNum +1;
         HashMap<Integer, Integer> updatedLastPageIndexInEachMergingRun = merge(currRoundNum, lastPageIndexInEachMergingRun); //currRoundNum gives info on where is the thing stored
-        if (currNumRuns <= numBuff-1){
+        if (updatedLastPageIndexInEachMergingRun.size() == 1){
             //able to merge within this run
             //update the lastRoundIndex to find where the final results are stored in directory
             this.lastRoundIndex = newRoundNum;
+            this.lastSortedPage = updatedLastPageIndexInEachMergingRun.get(0);
+            this.allSorted = true;
         }
         else{
             recursivelyMerge(newRoundNum, updatedLastPageIndexInEachMergingRun);
@@ -382,6 +386,35 @@ public class ExternalSort extends Operator {
             }
         }
         return newPageNum;
+    }
+
+    public Batch next(){
+        String inputFile;
+        ObjectInputStream in;
+        //read each page in the output
+        inputFile = "ESrun-round-"+ Integer.valueOf(this.lastRoundIndex) +"-run-" + String.valueOf(0) + "-page-" + String.valueOf(this.nextOutputPage);
+        try{
+            //read the page
+            in = new ObjectInputStream(new FileInputStream(inputFile));
+            outBatch = (Batch) in.readObject();
+            //the object read in is a batch(page)
+            in.close();
+        }
+        catch(IOException io){
+            System.err.printf("ES next() - error in reading the file %s.", inputFile);
+            System.exit(1);
+        }
+        catch(ClassNotFoundException c){
+            System.out.printf("ES next(): Error in deserialising temporary file %s.", inputFile);
+            System.exit(1);
+        } 
+        this.nextOutputPage ++;
+        return outBatch;
+    }
+
+    public boolean close(){
+        super.close();
+        return true;
     }
 
     
