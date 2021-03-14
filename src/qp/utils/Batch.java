@@ -2,6 +2,9 @@
  * Batch represents a page
  **/
 
+//added two new functions:
+//getAllTuples returns all tuples in the batch
+//getNumTuples returns the num of tuples in the batch
 package qp.utils;
 
 import java.util.ArrayList;
@@ -79,5 +82,13 @@ public class Batch implements Serializable {
             return true;
         else
             return false;
+    }
+
+    public ArrayList<Tuple> getAllTuples(){
+        return tuples;
+    }
+
+    public int getNumTuples(){
+        return tuples.size();
     }
 }
