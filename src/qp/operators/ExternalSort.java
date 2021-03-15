@@ -39,8 +39,9 @@ public class ExternalSort extends Operator {
     ArrayList<Integer> attrIndex;
 
 
-    public ExternalSort(Operator base, ArrayList<Attribute> as, int type, int order) {
-        super(type);
+    public ExternalSort(Operator base, ArrayList<Attribute> as, int numBuff, int order) {
+        super(OpType.SORT);
+        this.numBuff = numBuff;
         this.base = base;
         this.attrset = as;
         this.order = order;
@@ -425,7 +426,8 @@ public class ExternalSort extends Operator {
         ArrayList<Attribute> newAttrList = new ArrayList<Attribute>();
         newAttrList.addAll(attrset);
         int newOrder = order;
-        ExternalSort newES = new ExternalSort(newBase, newAttrList, optype, newOrder);
+        int newNumBuff = numBuff;
+        ExternalSort newES = new ExternalSort(newBase, newAttrList, newNumBuff, newOrder);
         Schema newSchema = newBase.getSchema();
         newES.setSchema(newSchema);
         newES.setNumBuff(numBuff);

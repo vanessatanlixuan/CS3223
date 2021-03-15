@@ -16,7 +16,8 @@ public class Distinct extends Operator {
     private int batchsize;
 
     //sorted relation 
-    private Operator sortedrelation; 
+    //private Operator sortedrelation; 
+    ExternalSort sortedrelation; 
 
     // number of buffers 
     private int bufferNo; 
@@ -33,12 +34,21 @@ public class Distinct extends Operator {
     private Batch inbatch = null; 
     private boolean result = false; 
     private Tuple lastTuple = null; 
+    private Schema schm;
 
     public Distinct(Operator relation, ArrayList attr_list){
         super(relation.optype);
         this.relation = relation; 
         this.attr_list = attr_list;
-        schema =  getSchema(relation);
+        schm =  relation.getSchema();
+    }
+
+    public Operator getBase() {
+        return relation;
+    }
+
+    public void setBase(Operator relation) {
+        this.relation = relation;
     }
 
     //find out the attribute col 
@@ -55,11 +65,11 @@ public class Distinct extends Operator {
         for (int i=0; i < attr_list.size(); i++) {
             // attr name, find index on schema, store in index list 
             Attribute at = (Attribute) attr_list.get(i);
-            indexList[i] =  Integer.parseInt(schm.indexOf(at));
+            indexList[i] =  Integer.valueOf(schm.indexOf(at));
         }
 
         //perform sorting with external algorithm 
-        sortedrelation = new Sort(relation, attr_list, bufferNo); 
+        sortedrelation = new ExternalSort(relation, attr_list, bufferNo, 1); 
         sortedrelation.setSchema(schm);
 
         //sorted relation based on attr. open it 
@@ -80,13 +90,13 @@ public class Distinct extends Operator {
 
         while(!outbatch.isFull()){
             //check if end of file, when no more pages to be read into buffer 
-            if (inbatch.size() <= cursor> || inbatch == null){
+            if (inbatch.size() <= cursor || inbatch == null){
                 eos = true;  
                 return outbatch; 
             }
             
             for (cursor=0; cursor < batchsize; cursor++){
-                Tuple current = inbatch.elementAt(i); 
+                Tuple current = inbatch.get(cursor); 
                 
                 //add to outbatch whenever there is no last tuple or when tuples are not equal to each other 
                 if (lastTuple == null){
@@ -130,7 +140,7 @@ public class Distinct extends Operator {
     public Object clone() {
         Operator newrelation = (Operator) relation.clone();
         ArrayList newattr_list = (ArrayList) attr_list.clone();  
-        Distinct newdsct = new Distinct(relation.clone(), optype);
+        Distinct newdsct = new Distinct(newrelation, newattr_list);
         newdsct.setSchema(newrelation.getSchema());
         return newdsct;
     }
