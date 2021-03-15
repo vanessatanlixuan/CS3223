@@ -419,6 +419,18 @@ public class ExternalSort extends Operator {
         return true;
     }
 
+    @Override 
+    public Object clone(){
+        Operator newBase = (Operator) base.clone();
+        ArrayList<Attribute> newAttrList = new ArrayList<Attribute>();
+        newAttrList.addAll(attrset);
+        int newOrder = order;
+        ExternalSort newES = new ExternalSort(newBase, newAttrList, optype, newOrder);
+        Schema newSchema = newBase.getSchema();
+        newES.setSchema(newSchema);
+        newES.setNumBuff(numBuff);
+        return newES;
+    }
     
 }
 //need to create this informed tuple to know which buffer to get next tuple from

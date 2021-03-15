@@ -22,6 +22,9 @@ public class RandomInitialPlan {
     ArrayList<Condition> selectionlist;   // List of select conditons
     ArrayList<Condition> joinlist;        // List of join conditions
     ArrayList<Attribute> groupbylist;
+    //new
+    ArrayList<Attribute> orderbylist;
+    
     int numJoin;            // Number of joins in this query
     HashMap<String, Operator> tab_op_hash;  // Table name to the Operator
     Operator root;          // Root of the query plan tree
@@ -69,8 +72,10 @@ public class RandomInitialPlan {
         if (numJoin != 0) {
             createJoinOp();
         }
+        createGroupByOp();
+        createOrderByOp();
         createProjectOp();
-
+        createDistinctOp();
         return root;
     }
 
@@ -139,6 +144,34 @@ public class RandomInitialPlan {
         if (selectionlist.size() != 0)
             root = op1;
     }
+
+    public void createOrderByOp(){
+        int order = 1;
+        if(sqlquery.isDesc() == true){
+            order = -1;
+        }
+        if(orderbylist != null && orderbylist.isEmpty() == false){
+            OrderBy op1 = new OrderBy(root, orderbylist, OpType.SORT, order);
+            op1.setSchema(root.getSchema());
+            root = op1;
+        }
+    }
+
+    
+    public void createDistinctOp(){
+        if(sqlquery.isDistinct() == true){
+            //instantiate a Distinct object
+        }
+    }
+
+    public void createGroupByOp(){
+        if(groupbylist != null && groupbylist.isEmpty() != false){
+            //instantiate a Group By object
+        }
+    }
+
+    
+
 
     /**
      * create join operators

@@ -23,7 +23,6 @@ public class QueryMain {
             System.out.println("usage: java QueryMain <queryfilename> <resultfile> <pagesize> <numbuffer>");
             System.exit(1);
         }
-
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         Batch.setPageSize(getPageSize(args, in));
 
