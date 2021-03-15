@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="lib"/>
+	<classpathentry excluding="qp/operators/" kind="src" path="src"/>
+	<classpathentry kind="src" path="src/qp/operators"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER">
+		<attributes>
+			<attribute name="module" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="/Users/vanessatan/CS3223/lib"/>
+	<classpathentry kind="output" path="classes"/>
+</classpath>

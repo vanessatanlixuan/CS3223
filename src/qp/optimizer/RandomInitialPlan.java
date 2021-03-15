@@ -160,7 +160,9 @@ public class RandomInitialPlan {
     
     public void createDistinctOp(){
         if(sqlquery.isDistinct() == true){
-            //instantiate a Distinct object
+            Distinct op1 = new Distinct(root, projectlist);
+            op1.setSchema(root.getSchema());
+            root = op1;
         }
     }
 

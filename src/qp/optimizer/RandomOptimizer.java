@@ -69,13 +69,13 @@ public class RandomOptimizer {
                     ArrayList<Attribute> attrLeft = new ArrayList<Attribute>();
                     Attribute aleft = smj.getCondition().getLhs();
                     attrLeft.add(aleft);
-                    ExternalSort es = new ExternalSort(left, attrLeft, OpType.SORT, 1);
+                    ExternalSort es = new ExternalSort(left, attrLeft, numbuff, 1);
                     smj.setLeft(es);
 
                     ArrayList<Attribute> attrRight = new ArrayList<Attribute>();
                     Attribute aright = (Attribute) smj.getCondition().getRhs();
                     attrRight.add(aright);
-                    ExternalSort es2 = new ExternalSort(right, attrRight, OpType.SORT, 1);
+                    ExternalSort es2 = new ExternalSort(right, attrRight, numbuff, 1);
                     smj.setRight(es2);
                     return smj;
                 default:
@@ -91,12 +91,13 @@ public class RandomOptimizer {
             return node;
         }
         ////////////////newly added////////////////////////// 
-        /*
+        
         else if (node.getOpType() == OpType.DISTINCT) {
             Operator base = makeExecPlan(((Distinct) node).getBase());
             ((Distinct) node).setBase(base);
             return node;
         } 
+        /*
         else if (node.getOpType() == OpType.GROUPBY) {
             Operator base = makeExecPlan(((GroupBy) node).getBase());
             ((GroupBy) node).setBase(base);
@@ -440,12 +441,12 @@ public class RandomOptimizer {
             modifySchema(base);
             ArrayList attrlist = ((Project) node).getProjAttr();
             node.setSchema(base.getSchema().subSchema(attrlist));
-        }/* 
+        }
         else if (node.getOpType() == OpType.DISTINCT) {
             Operator base = ((Distinct) node).getBase();
             modifySchema(base);
             node.setSchema(base.getSchema());
-        } else if (node.getOpType() == OpType.GROUPBY) {
+        } /* else if (node.getOpType() == OpType.GROUPBY) {
             Operator base = ((GroupBy) node).getBase();
             modifySchema(base);
             node.setSchema(base.getSchema());
