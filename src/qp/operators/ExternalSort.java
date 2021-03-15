@@ -28,6 +28,7 @@ public class ExternalSort extends Operator {
     int nextOutputPage = 0;
     boolean allSorted = false;
     //lastPageIndexInEachRun stores the number of pages in each sorted run of round 0
+    int order; // order = 1 if asc, -1 if desc
 
     HashMap<Integer, Integer> lastPageIndexInEachRun = new HashMap<Integer, Integer>();
     /**
@@ -38,10 +39,11 @@ public class ExternalSort extends Operator {
     ArrayList<Integer> attrIndex;
 
 
-    public ExternalSort(Operator base, ArrayList<Attribute> as, int type) {
+    public ExternalSort(Operator base, ArrayList<Attribute> as, int type, int order) {
         super(type);
         this.base = base;
         this.attrset = as;
+        this.order = order;
     }
 
     public Operator getBase() { //obtain the relation
@@ -167,7 +169,7 @@ public class ExternalSort extends Operator {
             }
         }
         //now we have tupInRun list containing all the tuples to be sorted in a run
-        tupComparator tupleCompare = new tupComparator(attrIndex);
+        tupComparator tupleCompare = new tupComparator(attrIndex, order);
         Collections.sort(tupInRun, tupleCompare);
         //output to fileoutputstream
         ArrayList<Batch> listOfBatches = generateListOfBatches(tupInRun, batchSize);
@@ -264,7 +266,7 @@ public class ExternalSort extends Operator {
         Batch[] batchesInBuffer = new Batch[numBuffInUse];
         ObjectInputStream[] batchesInStream = new ObjectInputStream[numBuffInUse];
         boolean[] allPagesRead = new boolean[numBuffInUse];
-        Comparator<TupleWInfo> tupWICompare = new tupWIComparator(attrIndex);
+        Comparator<TupleWInfo> tupWICompare = new tupWIComparator(attrIndex, order);
         PriorityQueue<TupleWInfo> intermediate = new PriorityQueue<TupleWInfo>(batchSize, tupWICompare);
 
         for(int runIndex = startRunIndex; runIndex <= endRunIndex; runIndex++){
@@ -417,6 +419,18 @@ public class ExternalSort extends Operator {
         return true;
     }
 
+    @Override 
+    public Object clone(){
+        Operator newBase = (Operator) base.clone();
+        ArrayList<Attribute> newAttrList = new ArrayList<Attribute>();
+        newAttrList.addAll(attrset);
+        int newOrder = order;
+        ExternalSort newES = new ExternalSort(newBase, newAttrList, optype, newOrder);
+        Schema newSchema = newBase.getSchema();
+        newES.setSchema(newSchema);
+        newES.setNumBuff(numBuff);
+        return newES;
+    }
     
 }
 //need to create this informed tuple to know which buffer to get next tuple from
@@ -444,11 +458,13 @@ class tupWIComparator implements Comparator<TupleWInfo>{
      **/
     //list of indices of attributes to sort by
     ArrayList<Integer> attrIndex;
+    int order; //1 if asc, -1 if desc
 
     //constructor: input: array
-    public tupWIComparator(ArrayList<Integer> attrIndexList){
+    public tupWIComparator(ArrayList<Integer> attrIndexList, int order){
         //convert array into arraylist to use it in compare
         this.attrIndex = attrIndexList;
+        this.order = order; 
     }
 
     public int compare(TupleWInfo leftTup, TupleWInfo rightTup){
@@ -465,16 +481,34 @@ class tupWIComparator implements Comparator<TupleWInfo>{
             Object leftdata = left.dataAt(attrIndex.get(i));
             Object rightdata = right.dataAt(attrIndex.get(i));
             if (leftdata.equals(rightdata)) continue;
-            if (leftdata instanceof Integer) {
-                return ((Integer) leftdata).compareTo((Integer) rightdata);
-            } else if (leftdata instanceof String) {
-                return ((String) leftdata).compareTo((String) rightdata);
-            } else if (leftdata instanceof Float) {
-                return ((Float) leftdata).compareTo((Float) rightdata);
-            } else {
-                System.out.println("Tuple: Unknown comparision of the tuples in ExternalSort");
-                System.exit(1);
-                return 0;
+            if(this.order == 1){
+                if (leftdata instanceof Integer) {
+                    return ((Integer) leftdata).compareTo((Integer) rightdata);
+                } else if (leftdata instanceof String) {
+                    return ((String) leftdata).compareTo((String) rightdata);
+                } else if (leftdata instanceof Float) {
+                    return ((Float) leftdata).compareTo((Float) rightdata);
+                } else {
+                    System.out.println("ES-comparator: Unknown comparision of the tupleWI in ExternalSort");
+                    System.exit(1);
+                    return 0;
+                }
+            }
+            else if(this.order == -1){
+                if (leftdata instanceof Integer) {
+                    return ((Integer) rightdata).compareTo((Integer) leftdata);
+                } else if (leftdata instanceof String) {
+                    return ((String) rightdata).compareTo((String) leftdata);
+                } else if (leftdata instanceof Float) {
+                    return ((Float) rightdata).compareTo((Float) leftdata);
+                } else {
+                    System.out.println("ES-comparator DSC: Unknown comparision of the tupleWI in ExternalSort");
+                    System.exit(1);
+                    return 0;
+                }
+            }
+            else{
+                System.out.println("ES-comparator: tupleWI order is not defined properly to be 1 or -1");
             }
         }
         return 0;
@@ -487,11 +521,12 @@ class tupComparator implements Comparator<Tuple>{
      **/
     //list of indices of attributes to sort by
     ArrayList<Integer> attrIndex;
-
+    int order;
     //constructor: input: array
-    public tupComparator(ArrayList<Integer> attrIndexList){
+    public tupComparator(ArrayList<Integer> attrIndexList, int order){
         //convert array into arraylist to use it in compare
         this.attrIndex = attrIndexList;
+        this.order = order;
     }
 
     public int compare(Tuple left, Tuple right){
@@ -506,16 +541,34 @@ class tupComparator implements Comparator<Tuple>{
             Object leftdata = left.dataAt(attrIndex.get(i));
             Object rightdata = right.dataAt(attrIndex.get(i));
             if (leftdata.equals(rightdata)) continue;
-            if (leftdata instanceof Integer) {
-                return ((Integer) leftdata).compareTo((Integer) rightdata);
-            } else if (leftdata instanceof String) {
-                return ((String) leftdata).compareTo((String) rightdata);
-            } else if (leftdata instanceof Float) {
-                return ((Float) leftdata).compareTo((Float) rightdata);
-            } else {
-                System.out.println("Tuple: Unknown comparision of the tuples in ExternalSort");
-                System.exit(1);
-                return 0;
+            if(order == 1){
+                if (leftdata instanceof Integer) {
+                    return ((Integer) leftdata).compareTo((Integer) rightdata);
+                } else if (leftdata instanceof String) {
+                    return ((String) leftdata).compareTo((String) rightdata);
+                } else if (leftdata instanceof Float) {
+                    return ((Float) leftdata).compareTo((Float) rightdata);
+                } else {
+                    System.out.println("ES-Comparator ASC: Unknown comparision of the tuples in ExternalSort");
+                    System.exit(1);
+                    return 0;
+                }
+            }
+            else if (order == -1){
+                if (leftdata instanceof Integer) {
+                    return ((Integer) rightdata).compareTo((Integer) leftdata);
+                } else if (leftdata instanceof String) {
+                    return ((String) rightdata).compareTo((String) leftdata);
+                } else if (leftdata instanceof Float) {
+                    return ((Float) rightdata).compareTo((Float) leftdata);
+                } else {
+                    System.out.println("ES comparator DSC: Unknown comparision of the tuples in ExternalSort");
+                    System.exit(1);
+                    return 0;
+                }
+            }
+            else{
+                System.out.println("ES-comparator: tuple order is not defined properly to be 1 or -1");
             }
         }
         return 0;
