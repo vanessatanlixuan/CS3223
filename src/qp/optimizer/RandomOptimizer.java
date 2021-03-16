@@ -49,20 +49,21 @@ public class RandomOptimizer {
             int joinType = ((Join) node).getJoinType();
             int numbuff = BufferManager.getBuffersPerJoin();
             switch (joinType) {
+                // case JoinType.NESTEDJOIN:
+                //     NestedJoin nj = new NestedJoin((Join) node);
+                //     nj.setLeft(left);
+                //     nj.setRight(right);
+                //     nj.setNumBuff(numbuff);
+                //     return nj;
+                // case JoinType.BLOCKNESTEDJOIN:
+                //     System.out.println("\nBNJ\n");
+                //     BlockNestedJoin bnj = new BlockNestedJoin((Join) node);
+                //     bnj.setLeft(left);
+                //     bnj.setRight(right);
+                //     bnj.setNumBuff(numbuff);
+                //     return bnj;
                 case JoinType.NESTEDJOIN:
-                    NestedJoin nj = new NestedJoin((Join) node);
-                    nj.setLeft(left);
-                    nj.setRight(right);
-                    nj.setNumBuff(numbuff);
-                    return nj;
-                case JoinType.BLOCKNESTED:
-                    BlockNestedJoin bnj = new BlockNestedJoin((Join) node);
-                    bnj.setLeft(left);
-                    bnj.setRight(right);
-                    bnj.setNumBuff(numbuff);
-                    return bnj;
-                ///////newly added///////
-                case JoinType.SORTMERGE:
+                    System.out.println("\nSMJ\n");
                     SortMergeJoin smj = new SortMergeJoin((Join) node);
                     smj.setNumBuff(numbuff);
 
@@ -99,19 +100,16 @@ public class RandomOptimizer {
         } 
         /*
         else if (node.getOpType() == OpType.GROUPBY) {
-            GroupBy GroupByOp = ((GroupBy) node);
             Operator base = makeExecPlan(((GroupBy) node).getBase());
-            //((GroupBy) node).setBase(base);
+            ((GroupBy) node).setBase(base);
             return node;
         }
-        
+        */
         else if (node.getOpType() == OpType.ORDERBY) {
-            OrderBy OrderByOp = ((OrderBy) node);
             Operator base = makeExecPlan(((OrderBy) node).getBase());
             ((OrderBy) node).setBase(base);
             return node;
         }
-        */
         else {
             return node;
         }
@@ -147,7 +145,6 @@ public class RandomOptimizer {
         /** get an initial plan for the given sql query **/
         RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
         numJoin = rip.getNumJoins();
-        
         long MINCOST = Long.MAX_VALUE;
         Operator finalPlan = null;
 
@@ -410,14 +407,20 @@ public class RandomOptimizer {
         } else if (node.getOpType() == OpType.PROJECT) {
             return findNodeAt(((Project) node).getBase(), joinNum);
         }
+<<<<<<< .merge_file_r8rRKM
         
+=======
+>>>>>>> .merge_file_zIvm4m
         else if (node.getOpType() == OpType.DISTINCT){
             return findNodeAt(((Distinct) node).getBase(), joinNum);
         }
         else if (node.getOpType() == OpType.GROUPBY){
             return findNodeAt(((GroupBy) node).getBase(), joinNum);
         }
+<<<<<<< .merge_file_r8rRKM
         
+=======
+>>>>>>> .merge_file_zIvm4m
         else if (node.getOpType() == OpType.ORDERBY){
             return findNodeAt(((OrderBy) node).getBase(), joinNum);
         }
@@ -440,26 +443,27 @@ public class RandomOptimizer {
             Operator base = ((Select) node).getBase();
             modifySchema(base);
             node.setSchema(base.getSchema());
-        } else if (node.getOpType() == OpType.PROJECT) {
+        }
+        else if (node.getOpType() == OpType.PROJECT) {
             Operator base = ((Project) node).getBase();
             modifySchema(base);
             ArrayList<Attribute> attrlist = ((Project) node).getProjAttr();
             node.setSchema(base.getSchema().subSchema(attrlist));
         }
-        else if (node.getOpType() == OpType.DISTINCT) {
-            Operator base = ((Distinct) node).getBase();
-            modifySchema(base);
-            node.setSchema(base.getSchema());
-        } /* else if (node.getOpType() == OpType.GROUPBY) {
+        else if (node.getOpType() == OpType.GROUPBY) {
             Operator base = ((GroupBy) node).getBase();
             modifySchema(base);
             node.setSchema(base.getSchema());
         } 
-        */
         else if (node.getOpType() == OpType.ORDERBY) {
             Operator base = ((OrderBy) node).getBase();
             modifySchema(base);
             node.setSchema(base.getSchema());
         }
+        else if (node.getOpType() == OpType.DISTINCT) {
+            Operator base = ((Distinct) node).getBase();
+            modifySchema(base);
+            node.setSchema(base.getSchema());
+        } 
     }
 }

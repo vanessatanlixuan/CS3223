@@ -37,7 +37,11 @@ public class Distinct extends Operator {
     private Schema schm;
 
     public Distinct(Operator relation, ArrayList<Attribute> attr_list){
+<<<<<<< HEAD
         super(relation.optype);
+=======
+        super(OpType.DISTINCT);
+>>>>>>> 10875c71db7570ebb95730704e0f26d785fd7bbb
         this.relation = relation; 
         this.attr_list = attr_list;
         schm =  relation.getSchema();
@@ -73,7 +77,8 @@ public class Distinct extends Operator {
         }
 
         //perform sorting with external algorithm 
-        sortedrelation = new ExternalSort(relation, attr_list, bufferNo, 1); 
+        ArrayList<Attribute> aList = attr_list;
+        sortedrelation = new ExternalSort(relation, aList, bufferNo, 1); 
         sortedrelation.setSchema(schm);
 
         //sorted relation based on attr. open it 
@@ -83,9 +88,8 @@ public class Distinct extends Operator {
 
     public Batch next() {
         if (eos) { //end of file stream, close operator 
-            close(); 
-            return null; 
-            
+            close();
+            return null;  
         }
 
         outbatch = new Batch(batchsize);
@@ -134,7 +138,6 @@ public class Distinct extends Operator {
 
         return outbatch; 
     }
-
     @Override
     public boolean close() { 
         //return distinct relation
@@ -146,12 +149,16 @@ public class Distinct extends Operator {
     @Override
     public Object clone() {
         Operator newrelation = (Operator) relation.clone();
+<<<<<<< HEAD
         ArrayList<Attribute> newattr_list = new ArrayList<>();
         for (int i = 0; i < attr_list.size(); i++) {
             Attribute attribute = (Attribute) ((Attribute) attr_list.get(i)).clone();
             newattr_list.add(attribute);
         }
         //ArrayList<Attribute> newattr_list = (ArrayList<Attribute>) attr_list.clone();  
+=======
+        ArrayList<Attribute> newattr_list = (ArrayList<Attribute>) attr_list.clone();  
+>>>>>>> 10875c71db7570ebb95730704e0f26d785fd7bbb
         Distinct newdsct = new Distinct(newrelation, newattr_list);
         newdsct.setSchema(newrelation.getSchema());
         return newdsct;

@@ -86,10 +86,10 @@ public class Debug {
                 case JoinType.NESTEDJOIN:
                     System.out.print("NestedJoin(");
                     break;
-                case JoinType.BLOCKNESTED:
+                case JoinType.BLOCKNESTEDJOIN:
                     System.out.print("BlockNested(");
                     break;
-                case JoinType.SORTMERGE:
+                case JoinType.SORTMERGEJOIN:
                     System.out.print("SortMerge(");
                     break;
                 case JoinType.HASHJOIN:
@@ -118,6 +118,22 @@ public class Debug {
         } else if (optype == OpType.SCAN) {
             System.out.print(((Scan) node).getTabName());
         }
+        else if (optype == OpType.DISTINCT) {
+            System.out.print("Distinct(");
+            PPrint(((Distinct) node).getBase());
+            System.out.print(")");
+        }
+        else if (optype == OpType.ORDERBY) {
+            System.out.print("OrderBy(");
+            PPrint(((OrderBy) node).getBase());
+            System.out.print(")");
+        }
+        else if (optype == OpType.GROUPBY) {
+            System.out.print("GroupBy(");
+            PPrint(((GroupBy) node).getBase());
+            System.out.print(")");
+        }
+
     }
 
 

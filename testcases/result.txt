@@ -1,56 +1,54 @@
-CUSTOMER.cid  CUSTOMER.gender  CUSTOMER.firstname  
-171	1	cjmhxqbxgf	
-55	1	axubydlpbw	
-26	1	vspgbaipwi	
-21	1	akclprxkwy	
-188	1	pmceswspgs	
-30	1	mhrzllfyul	
-181	1	wvdslhqwxn	
-38	1	zcxqidylwn	
-59	1	sebttginmd	
-94	1	ssoyazgpbz	
-191	1	qouibyqzvx	
-117	1	pqhzlfirec	
-161	1	cyqfaeybcn	
-50	1	jdjiravoww	
-156	1	iexamphmfx	
-123	1	ebllifqwbx	
-45	1	rutbzwhdau	
-148	1	aguglshwqk	
-23	1	nfbwrjtjur	
-170	1	rfwxsgotac	
-150	1	ajcppefxvb	
-12	1	bvfzbblrit	
-35	1	pqipjvlhij	
-179	1	jlariwlilf	
-141	1	ykdvxynrww	
-135	1	fuafbbhqzn	
-114	1	gjatwpudvd	
-66	1	kfvkdppdgl	
-46	1	svebbxggsf	
-180	1	gludqumnyu	
-44	1	uhyoemyeap	
-126	1	ncebbsaxri	
-48	1	jdfbiwkdmx	
-53	1	zddlkumhfo	
-6	1	iockhafvxy	
-19	1	ajvadpiuvp	
-49	1	ehfdngvunw	
-147	1	eofybzitnk	
-164	1	xhqoplyzfx	
-195	1	mkuoloixom	
-27	1	xxozdwvwab	
-155	1	fipruuqwed	
-67	1	lebujcclce	
-84	1	pnyjjflsre	
-0	1	qdhctizotm	
-79	1	fpmrlktxni	
-9	1	dgjxtbiuap	
-15	1	noyshojgqn	
-154	1	uclqjflxuz	
-41	1	rlsguujjvh	
-61	1	fybdxeldfz	
-60	1	araesyswcq	
-182	1	zpcnipnxcj	
-100	1	dhqtjexlyv	
-138	1	znfqzrehtf	
+CUSTOMER.cid  CUSTOMER.firstname  CUSTOMER.gender  CART.cartid  CART.status  
+8	afqiarodsg	0	135	kamgxhnl	
+7	heujjxcosj	0	123	tomjgwxi	
+177	jcyjuszqcz	0	138	zahdwjcx	
+8	afqiarodsg	0	129	urbgmosa	
+177	jcyjuszqcz	0	70	jrizdgyk	
+191	qouibyqzvx	1	100	owdwzmik	
+146	whdddnlugq	0	94	lyrbnqpk	
+69	lwuwvcazjf	0	141	ejcrcifc	
+56	uewypmyjrs	0	155	cioqmgsb	
+86	zbwvkeuove	0	174	dpcnrpzc	
+86	zbwvkeuove	0	189	usntbfze	
+86	zbwvkeuove	0	148	rkorrvgf	
+187	bujwfhnvxs	0	12	gqkxbhfj	
+115	dvcbffecqk	0	115	ysdvukqk	
+45	rutbzwhdau	1	15	fjennsxd	
+161	cyqfaeybcn	1	82	nwfgnktu	
+45	rutbzwhdau	1	10	mbpmeped	
+161	cyqfaeybcn	1	101	wgbkrfcz	
+43	ekajovjwbd	0	93	dopreevo	
+43	ekajovjwbd	0	28	heewzjhg	
+150	ajcppefxvb	1	107	orpejznn	
+170	rfwxsgotac	1	163	olqrcdki	
+176	vqpihlgyvm	0	26	ejbkpspp	
+12	bvfzbblrit	1	54	danskwov	
+170	rfwxsgotac	1	137	fryyqana	
+58	qphjrrpmfu	0	25	nqwfjvgt	
+129	rhspgdxrru	0	134	qdaawqjd	
+141	ykdvxynrww	1	51	siczmpev	
+141	ykdvxynrww	1	175	bzylzdtw	
+174	fkyunlrdee	0	103	qkniqarr	
+180	gludqumnyu	1	161	nznrrowo	
+66	kfvkdppdgl	1	18	ckftgurh	
+44	uhyoemyeap	1	164	qjhsolww	
+98	isqlsnxgtt	0	191	galuxnid	
+13	abfhjheatx	0	41	intzvdaz	
+13	abfhjheatx	0	185	qskuiqyr	
+51	djrlakasxm	0	13	tbufbdsp	
+83	ninvipwalv	0	97	eienajya	
+147	eofybzitnk	1	124	gimscqqu	
+84	pnyjjflsre	1	69	exiisojz	
+137	wkqvceqqht	0	36	rovldotu	
+120	glcwejafgq	0	184	vtyfruiy	
+0	qdhctizotm	1	194	dcdmcnfe	
+84	pnyjjflsre	1	156	nwpfowjx	
+15	noyshojgqn	1	4	eakundai	
+60	araesyswcq	1	67	zrjfojto	
+186	pyaxfamqiu	0	43	lrtsheda	
+138	znfqzrehtf	1	30	cnkujsqi	
+100	dhqtjexlyv	1	140	sbqeiqic	
+61	fybdxeldfz	1	187	jhkpjuev	
+112	eircyrriod	0	114	fwqtqtyf	
+100	dhqtjexlyv	1	121	wjcfjbdb	
+112	eircyrriod	0	33	zoinwkmi	
