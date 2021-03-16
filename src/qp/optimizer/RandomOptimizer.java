@@ -55,29 +55,29 @@ public class RandomOptimizer {
                     nj.setRight(right);
                     nj.setNumBuff(numbuff);
                     return nj;
-                case JoinType.BLOCKNESTED:
+                case JoinType.BLOCKNESTEDJOIN:
+                    System.out.println("\nBNJ\n");
                     BlockNestedJoin bnj = new BlockNestedJoin((Join) node);
                     bnj.setLeft(left);
                     bnj.setRight(right);
                     bnj.setNumBuff(numbuff);
                     return bnj;
-                ///////newly added///////
-                case JoinType.SORTMERGE:
-                    SortMergeJoin smj = new SortMergeJoin((Join) node);
-                    smj.setNumBuff(numbuff);
+                // case JoinType.SORTMERGEJOIN:
+                //     SortMergeJoin smj = new SortMergeJoin((Join) node);
+                //     smj.setNumBuff(numbuff);
 
-                    ArrayList<Attribute> attrLeft = new ArrayList<Attribute>();
-                    Attribute aleft = smj.getCondition().getLhs();
-                    attrLeft.add(aleft);
-                    ExternalSort es = new ExternalSort(left, attrLeft, numbuff, 1);
-                    smj.setLeft(es);
+                //     ArrayList<Attribute> attrLeft = new ArrayList<Attribute>();
+                //     Attribute aleft = smj.getCondition().getLhs();
+                //     attrLeft.add(aleft);
+                //     ExternalSort es = new ExternalSort(left, attrLeft, numbuff, 1);
+                //     smj.setLeft(es);
 
-                    ArrayList<Attribute> attrRight = new ArrayList<Attribute>();
-                    Attribute aright = (Attribute) smj.getCondition().getRhs();
-                    attrRight.add(aright);
-                    ExternalSort es2 = new ExternalSort(right, attrRight, numbuff, 1);
-                    smj.setRight(es2);
-                    return smj;
+                //     ArrayList<Attribute> attrRight = new ArrayList<Attribute>();
+                //     Attribute aright = (Attribute) smj.getCondition().getRhs();
+                //     attrRight.add(aright);
+                //     ExternalSort es2 = new ExternalSort(right, attrRight, numbuff, 1);
+                //     smj.setRight(es2);
+                //     return smj;
                 default:
                     return node;
             }
