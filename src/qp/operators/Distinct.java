@@ -36,12 +36,8 @@ public class Distinct extends Operator {
     private Tuple lastTuple = null; 
     private Schema schm;
 
-    public Distinct(Operator relation, ArrayList<Attribute> attr_list){
-<<<<<<< HEAD
-        super(relation.optype);
-=======
-        super(OpType.DISTINCT);
->>>>>>> 10875c71db7570ebb95730704e0f26d785fd7bbb
+    public Distinct(Operator relation, ArrayList<Attribute> attr_list, int type){
+        super(type);
         this.relation = relation; 
         this.attr_list = attr_list;
         schm =  relation.getSchema();
@@ -149,17 +145,14 @@ public class Distinct extends Operator {
     @Override
     public Object clone() {
         Operator newrelation = (Operator) relation.clone();
-<<<<<<< HEAD
         ArrayList<Attribute> newattr_list = new ArrayList<>();
         for (int i = 0; i < attr_list.size(); i++) {
             Attribute attribute = (Attribute) ((Attribute) attr_list.get(i)).clone();
             newattr_list.add(attribute);
         }
         //ArrayList<Attribute> newattr_list = (ArrayList<Attribute>) attr_list.clone();  
-=======
-        ArrayList<Attribute> newattr_list = (ArrayList<Attribute>) attr_list.clone();  
->>>>>>> 10875c71db7570ebb95730704e0f26d785fd7bbb
-        Distinct newdsct = new Distinct(newrelation, newattr_list);
+    
+        Distinct newdsct = new Distinct(newrelation, newattr_list, OpType.DISTINCT);
         newdsct.setSchema(newrelation.getSchema());
         return newdsct;
     }
