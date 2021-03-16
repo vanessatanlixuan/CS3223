@@ -49,20 +49,20 @@ public class RandomOptimizer {
             int joinType = ((Join) node).getJoinType();
             int numbuff = BufferManager.getBuffersPerJoin();
             switch (joinType) {
+                // case JoinType.NESTEDJOIN:
+                //     NestedJoin nj = new NestedJoin((Join) node);
+                //     nj.setLeft(left);
+                //     nj.setRight(right);
+                //     nj.setNumBuff(numbuff);
+                //     return nj;
+                // case JoinType.BLOCKNESTEDJOIN:
+                //     System.out.println("\nBNJ\n");
+                //     BlockNestedJoin bnj = new BlockNestedJoin((Join) node);
+                //     bnj.setLeft(left);
+                //     bnj.setRight(right);
+                //     bnj.setNumBuff(numbuff);
+                //     return bnj;
                 case JoinType.NESTEDJOIN:
-                    NestedJoin nj = new NestedJoin((Join) node);
-                    nj.setLeft(left);
-                    nj.setRight(right);
-                    nj.setNumBuff(numbuff);
-                    return nj;
-                case JoinType.BLOCKNESTEDJOIN:
-                    System.out.println("\nBNJ\n");
-                    BlockNestedJoin bnj = new BlockNestedJoin((Join) node);
-                    bnj.setLeft(left);
-                    bnj.setRight(right);
-                    bnj.setNumBuff(numbuff);
-                    return bnj;
-                case JoinType.SORTMERGEJOIN:
                     System.out.println("\nSMJ\n");
                     SortMergeJoin smj = new SortMergeJoin((Join) node);
                     smj.setNumBuff(numbuff);
