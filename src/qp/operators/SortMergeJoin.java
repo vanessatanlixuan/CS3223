@@ -49,9 +49,7 @@ public class SortMergeJoin extends Join {
      */
     @Override
     public boolean open() {
-        // Sorts the left relation.
-        left.open();
-        right.open();
+        // Sort in done at RandomOptimizer class.
 
         // Selects the number of tuples per page based tuple size.
         int tuplesize = schema.getTupleSize();
