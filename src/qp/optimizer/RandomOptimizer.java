@@ -93,27 +93,22 @@ public class RandomOptimizer {
         ////////////////newly added////////////////////////// 
         
         else if (node.getOpType() == OpType.DISTINCT) {
-            //Distinct distinctOp = ((Distinct) node);
             Operator base = makeExecPlan(((Distinct) node).getBase());
             ((Distinct) node).setBase(base);
-            //distinctOp.setBase(base, BufferManager.numBuffer);
             return node;
         } 
         /*
         else if (node.getOpType() == OpType.GROUPBY) {
-            GroupBy GroupByOp = ((GroupBy) node);
             Operator base = makeExecPlan(((GroupBy) node).getBase());
-            //((GroupBy) node).setBase(base);
+            ((GroupBy) node).setBase(base);
             return node;
         }
-        
+        */
         else if (node.getOpType() == OpType.ORDERBY) {
-            OrderBy OrderByOp = ((OrderBy) node);
             Operator base = makeExecPlan(((OrderBy) node).getBase());
             ((OrderBy) node).setBase(base);
             return node;
         }
-        */
         else {
             return node;
         }
@@ -149,7 +144,6 @@ public class RandomOptimizer {
         /** get an initial plan for the given sql query **/
         RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
         numJoin = rip.getNumJoins();
-        
         long MINCOST = Long.MAX_VALUE;
         Operator finalPlan = null;
 
