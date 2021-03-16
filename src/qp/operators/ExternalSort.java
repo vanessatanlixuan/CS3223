@@ -47,6 +47,13 @@ public class ExternalSort extends Operator {
         this.order = order;
     }
 
+    public ExternalSort(Operator base, ArrayList<Attribute> as, int order) {
+        super(OpType.SORT);
+        this.base = base;
+        this.attrset = as;
+        this.order = order;
+    }
+
     public Operator getBase() { //obtain the relation
         return base;
     }
