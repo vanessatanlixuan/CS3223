@@ -37,6 +37,7 @@ public class ExternalSort extends Operator {
      **/
     //int[] attrIndex;
     ArrayList<Integer> attrIndex;
+    
 
 
     public ExternalSort(Operator base, ArrayList<Attribute> as, int numBuff, int order) {
