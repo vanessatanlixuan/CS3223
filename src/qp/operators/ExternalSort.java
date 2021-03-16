@@ -37,7 +37,7 @@ public class ExternalSort extends Operator {
      **/
     //int[] attrIndex;
     ArrayList<Integer> attrIndex;
-    
+
 
 
     public ExternalSort(Operator base, ArrayList<Attribute> as, int numBuff, int order) {
@@ -431,7 +431,6 @@ public class ExternalSort extends Operator {
         ExternalSort newES = new ExternalSort(newBase, newAttrList, newNumBuff, newOrder);
         Schema newSchema = newBase.getSchema();
         newES.setSchema(newSchema);
-        newES.setNumBuff(numBuff);
         return newES;
     }
     

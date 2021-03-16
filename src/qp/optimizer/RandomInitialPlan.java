@@ -50,7 +50,7 @@ public class RandomInitialPlan {
      * prepare initial plan for the query
      **/
     public Operator prepareInitialPlan() {
-
+        /*
         if (sqlquery.isDistinct()) {
             System.err.println("Distinct is not implemented.");
             System.exit(1);
@@ -65,7 +65,7 @@ public class RandomInitialPlan {
             System.err.println("Orderby is not implemented.");
             System.exit(1);
         }
-
+        */
         tab_op_hash = new HashMap<>();
         createScanOp();
         createSelectOp();
@@ -75,7 +75,10 @@ public class RandomInitialPlan {
         createGroupByOp();
         createOrderByOp();
         createProjectOp();
-        createDistinctOp();
+        if(sqlquery.isDistinct()){
+            createDistinctOp();
+        }
+            
         return root;
     }
 
