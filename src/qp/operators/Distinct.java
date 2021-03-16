@@ -10,7 +10,7 @@ import java.util.ArrayList;
 public class Distinct extends Operator {
     
     // initialize list of attributes to distinct on 
-    private ArrayList attr_list; 
+    private ArrayList<Attribute> attr_list; 
 
     // number of tuples for outbatch i.e number of tuples in each o/p 
     private int batchsize;
@@ -32,11 +32,11 @@ public class Distinct extends Operator {
     private int cursor = 0;
     private Batch outbatch;
     private Batch inbatch = null; 
-    private boolean result = false; 
+    boolean flag = false; 
     private Tuple lastTuple = null; 
     private Schema schm;
 
-    public Distinct(Operator relation, ArrayList attr_list){
+    public Distinct(Operator relation, ArrayList<Attribute> attr_list){
         super(relation.optype);
         this.relation = relation; 
         this.attr_list = attr_list;
@@ -49,6 +49,10 @@ public class Distinct extends Operator {
 
     public void setBase(Operator relation) {
         this.relation = relation;
+    }
+
+    public ArrayList<Attribute> getProjAttr() {
+        return attr_list;
     }
 
     //find out the attribute col 
@@ -110,12 +114,12 @@ public class Distinct extends Operator {
                 for (int index : indexList){
                     int eq = Tuple.compareTuples(lastTuple, current, index); 
                     if (eq != 0){
-                        result = true; 
+                        flag = true; 
                         break; 
                     } 
                 }
 
-                if (result = true){
+                if (flag = true){
                     outbatch.add(current); 
                     lastTuple = current; 
                 }
@@ -139,9 +143,15 @@ public class Distinct extends Operator {
 
     }
 
+    @Override
     public Object clone() {
         Operator newrelation = (Operator) relation.clone();
-        ArrayList newattr_list = (ArrayList) attr_list.clone();  
+        ArrayList<Attribute> newattr_list = new ArrayList<>();
+        for (int i = 0; i < attr_list.size(); i++) {
+            Attribute attribute = (Attribute) ((Attribute) attr_list.get(i)).clone();
+            newattr_list.add(attribute);
+        }
+        //ArrayList<Attribute> newattr_list = (ArrayList<Attribute>) attr_list.clone();  
         Distinct newdsct = new Distinct(newrelation, newattr_list);
         newdsct.setSchema(newrelation.getSchema());
         return newdsct;

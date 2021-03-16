@@ -1,4 +1,4 @@
-package qp.operators;
+package qp.operators.*;
 
 import java.util.Vector;
 import java.util.function.Supplier;

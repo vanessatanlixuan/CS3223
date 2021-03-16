@@ -93,10 +93,8 @@ public class RandomOptimizer {
         ////////////////newly added////////////////////////// 
         
         else if (node.getOpType() == OpType.DISTINCT) {
-            //Distinct distinctOp = ((Distinct) node);
             Operator base = makeExecPlan(((Distinct) node).getBase());
             ((Distinct) node).setBase(base);
-            //distinctOp.setBase(base, BufferManager.numBuffer);
             return node;
         } 
         /*
@@ -412,14 +410,14 @@ public class RandomOptimizer {
         } else if (node.getOpType() == OpType.PROJECT) {
             return findNodeAt(((Project) node).getBase(), joinNum);
         }
-        /* 
+        
         else if (node.getOpType() == OpType.DISTINCT){
             return findNodeAt(((Distinct) node).getBase(), joinNum);
         }
         else if (node.getOpType() == OpType.GROUPBY){
             return findNodeAt(((GroupBy) node).getBase(), joinNum);
         }
-        */
+        
         else if (node.getOpType() == OpType.ORDERBY){
             return findNodeAt(((OrderBy) node).getBase(), joinNum);
         }
@@ -445,7 +443,7 @@ public class RandomOptimizer {
         } else if (node.getOpType() == OpType.PROJECT) {
             Operator base = ((Project) node).getBase();
             modifySchema(base);
-            ArrayList attrlist = ((Project) node).getProjAttr();
+            ArrayList<Attribute> attrlist = ((Project) node).getProjAttr();
             node.setSchema(base.getSchema().subSchema(attrlist));
         }
         else if (node.getOpType() == OpType.DISTINCT) {
