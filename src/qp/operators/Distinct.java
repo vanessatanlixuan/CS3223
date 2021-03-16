@@ -79,8 +79,9 @@ public class Distinct extends Operator {
 
     public Batch next() {
         if (eos) { //end of file stream, close operator 
-            return null; 
             close(); 
+            return null; 
+            
         }
 
         outbatch = new Batch(batchsize);
@@ -130,6 +131,7 @@ public class Distinct extends Operator {
         return outbatch; 
     }
 
+    @Override
     public boolean close() { 
         //return distinct relation
         //close 

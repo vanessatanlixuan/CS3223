@@ -6,6 +6,8 @@ import qp.utils.Batch;
 import qp.utils.Tuple;
 import qp.operators.nestedjoin.Parameters;
 import qp.operators.nestedjoin.ReadNextTuple;
+//import qp.operators.TupleComparator; 
+
 
 public class SortMergeJoin extends Join {
 
@@ -109,8 +111,8 @@ public class SortMergeJoin extends Join {
         Batch outBatch = new Batch(parameters.getBatchSize());
 
         while (!outBatch.isFull()) {
-            int comparisionResult = TupleComparator.compareTuples(
-                parameters.getAttributeType(), 
+            int comparisionResult = Tuple.compareTuples(
+                //parameters.getAttributeType(), 
                 parameters.getLeftTuple(), 
                 parameters.getRightTuple(), 
                 parameters.getLeftIndex(), 
@@ -130,8 +132,8 @@ public class SortMergeJoin extends Join {
                         parameters.setEosLeft(true);
                         break;
                     }
-                    comparisionResult = TupleComparator.compareTuples(
-                        parameters.getAttributeType(), 
+                    comparisionResult = Tuple.compareTuples(
+                        //parameters.getAttributeType(), 
                         parameters.getLeftTuple(), 
                         parameters.getNextLeftTuple(), 
                         parameters.getLeftIndex(), 

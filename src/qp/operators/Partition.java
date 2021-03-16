@@ -32,8 +32,8 @@ public class Partition {
             if (nextRightTuple == null) {
                 break;
             }
-            comparisionResult = TupleComparator.compareTuples(
-                params.getAttributeType(),
+            comparisionResult = Tuple.compareTuples(
+                //params.getAttributeType(),
                 partition.elementAt(0),
                 nextRightTuple,
                 params.getLeftIndex(),
