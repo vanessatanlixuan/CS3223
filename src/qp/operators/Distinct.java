@@ -7,6 +7,7 @@ import qp.utils.Tuple;
 
 import java.util.ArrayList;
 
+
 public class Distinct extends Operator {
     
     // initialize list of attributes to distinct on 
@@ -15,84 +16,101 @@ public class Distinct extends Operator {
     // number of tuples for outbatch i.e number of tuples in each o/p 
     private int batchsize;
 
-    //sorted relation 
-    //private Operator sortedrelation; 
-    ExternalSort sortedrelation; 
+    //sorted base 
+    //private Operator sortedbase; 
+    ExternalSort sortedbase; 
+    ExternalSort.TupleSortComparator comparator;
 
     // number of buffers 
     private int bufferNo; 
 
-    // unsorted relation; 
-    private Operator relation; 
+    // unsorted base; 
+    private Operator base; 
 
     //index list 
     private int[] indexList; 
 
     private boolean eos = false; 
-    private int cursor = 0;
     private Batch outbatch;
     private Batch inbatch = null; 
     boolean flag = false; 
     private Tuple lastTuple = null; 
     private Schema schm;
 
-    public Distinct(Operator relation, ArrayList<Attribute> attr_list, int type){
+    public Distinct(Operator base, ArrayList<Attribute> attr_list, int type){
         super(type);
-        this.relation = relation; 
+        this.base = base; 
         this.attr_list = attr_list;
-        schm =  relation.getSchema();
+    }
+
+    public Distinct(Operator base, ArrayList<Attribute> attr_list, int type, int buffno){
+        super(type);
+        this.base = base; 
+        this.attr_list = attr_list;
+        this.numBuff = buffno; 
     }
 
     public Operator getBase() {
-        return relation;
+        return base;
     }
 
-    public void setBase(Operator relation) {
-        this.relation = relation;
+    public void setBase(Operator base) {
+        this.base = base;
+    }
+
+    public void setOpType(int type) {
+        this.optype = type;
+    }
+
+    public int getNumBuff(){
+        return numBuff; 
+    }
+
+    public int setNumBuff(int no){
+        this.numBuff = no; 
+    }
+
+    public Schema getSchema() {
+        return schema;
     }
 
     public ArrayList<Attribute> getProjAttr() {
         return attr_list;
     }
 
-    //find out the attribute col 
-
     public boolean open() {
         //get batch size 
         int tuplesize = schema.getTupleSize();
         batchsize = Batch.getPageSize() / tuplesize;
+        Schema schm = base.getSchema(); 
 
-        //get unsorted relation schema
-        //Schema schm = relation.getSchema();
-
-        //get the index of the attributes needed
-        for (int i=0; i < attr_list.size(); i++) {
-            // attr name, find index on schema, store in index list 
-            Attribute at = (Attribute) attr_list.get(i);
-            indexList[i] =  Integer.valueOf(schm.indexOf(at));
+        //get the index of the attributes 
+        for (Attribute attr in attr_list) {
+            indexList.add(schm.indexOf(attr)); 
         }
 
         //perform sorting with external algorithm 
-        ArrayList<Attribute> aList = attr_list;
-        sortedrelation = new ExternalSort(relation, aList, bufferNo, 1); 
-        sortedrelation.setSchema(schm);
+        sortedbase = new ExternalSort(base, attr_list, numBuff, +1); 
+        sortedbase.setSchema(schm);
 
-        //sorted relation based on attr. open it 
-        return sortedrelation.open(); 
+        //sorted base based on attr. open it 
+        //check 
+        if (!sortedbase.open()) return false;
+        return true; 
 
     }
 
     public Batch next() {
+        int cursor = 0;
+        System.out.println("~~~~~~~~~~~~~~~Order By~~~~~~~~~~~~~~")
         if (eos) { //end of file stream, close operator 
             close();
             return null;  
         }
+        //check if new page is needed to be fetched 
+        if (inbatch == null) { inbatch = sortedbase.next(); }
 
         outbatch = new Batch(batchsize);
-        //check if new page is needed to be fetched 
-        if (inbatch == null) {
-            inbatch = sortedrelation.next(); }
-
         while(!outbatch.isFull()){
             //check if end of file, when no more pages to be read into buffer 
             if (inbatch.size() <= cursor || inbatch == null){
@@ -100,33 +118,25 @@ public class Distinct extends Operator {
                 return outbatch; 
             }
             
-            for (cursor=0; cursor < batchsize; cursor++){
-                Tuple current = inbatch.get(cursor); 
-                
-                //add to outbatch whenever there is no last tuple or when tuples are not equal to each other 
-                if (lastTuple == null){
-                    outbatch.add(current); 
-                    lastTuple = current;
-                }
-                //remove duplicates by comparing tuples 
-                // using compareTuples(Tuple left, Tuple right, int leftIndex, int rightIndex) from utils/Tuple
+            Tuple current = inbatch.get(cursor); 
+            //add to outbatch whenever there is no last tuple or when tuples are not equal to each other 
+            for (int index : indexList){
+                int eq = Tuple.compareTuples(lastTuple, current, index); 
+                if (eq != 0){
+                    flag = false; 
+                    break; 
+                } 
+            }
+            flag = true; 
 
-                for (int index : indexList){
-                    int eq = Tuple.compareTuples(lastTuple, current, index); 
-                    if (eq != 0){
-                        flag = true; 
-                        break; 
-                    } 
-                }
-
-                if (flag = true){
-                    outbatch.add(current); 
-                    lastTuple = current; 
-                }
-
-            } 
+            if (lastTuple == null || flag = true ){
+                outbatch.add(current); 
+                lastTuple = current;
+            }
+            cursor++;    
+            
             if (cursor == batchsize){
-                inbatch = sortedrelation.next(); 
+                inbatch = sortedbase.next(); 
                 cursor = 0; 
             }
 
@@ -134,26 +144,26 @@ public class Distinct extends Operator {
 
         return outbatch; 
     }
+    
     @Override
     public boolean close() { 
-        //return distinct relation
+        //return distinct base
         //close 
-        return sortedrelation.close(); 
+        return sortedbase.close(); 
 
     }
 
     @Override
     public Object clone() {
-        Operator newrelation = (Operator) relation.clone();
+        Operator newbase = (Operator) base.clone();
         ArrayList<Attribute> newattr_list = new ArrayList<>();
         for (int i = 0; i < attr_list.size(); i++) {
             Attribute attribute = (Attribute) ((Attribute) attr_list.get(i)).clone();
             newattr_list.add(attribute);
         }
-        //ArrayList<Attribute> newattr_list = (ArrayList<Attribute>) attr_list.clone();  
-    
-        Distinct newdsct = new Distinct(newrelation, newattr_list, OpType.DISTINCT);
-        newdsct.setSchema(newrelation.getSchema());
+        Distinct newdsct = new Distinct(newbase, newattr_list, newtype);
+        newdsct.setNumBuff(newbase.getNumBuff());
+        newdsct.setSchema(newbase.getSchema());
         return newdsct;
     }
 
