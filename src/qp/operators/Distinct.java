@@ -10,7 +10,7 @@ import java.util.ArrayList;
 public class Distinct extends Operator {
     
     // initialize list of attributes to distinct on 
-    private ArrayList attr_list; 
+    private ArrayList<Attribute> attr_list; 
 
     // number of tuples for outbatch i.e number of tuples in each o/p 
     private int batchsize;
@@ -36,8 +36,8 @@ public class Distinct extends Operator {
     private Tuple lastTuple = null; 
     private Schema schm;
 
-    public Distinct(Operator relation, ArrayList attr_list){
-        super(relation.optype);
+    public Distinct(Operator relation, ArrayList<Attribute> attr_list){
+        super(OpType.DISTINCT);
         this.relation = relation; 
         this.attr_list = attr_list;
         schm =  relation.getSchema();
@@ -69,7 +69,8 @@ public class Distinct extends Operator {
         }
 
         //perform sorting with external algorithm 
-        sortedrelation = new ExternalSort(relation, attr_list, bufferNo, 1); 
+        ArrayList<Attribute> aList = attr_list;
+        sortedrelation = new ExternalSort(relation, aList, bufferNo, 1); 
         sortedrelation.setSchema(schm);
 
         //sorted relation based on attr. open it 
@@ -79,8 +80,8 @@ public class Distinct extends Operator {
 
     public Batch next() {
         if (eos) { //end of file stream, close operator 
-            return null; 
-            close(); 
+            close();
+            return null;  
         }
 
         outbatch = new Batch(batchsize);
@@ -129,7 +130,7 @@ public class Distinct extends Operator {
 
         return outbatch; 
     }
-
+    @Override
     public boolean close() { 
         //return distinct relation
         //close 
@@ -139,7 +140,7 @@ public class Distinct extends Operator {
 
     public Object clone() {
         Operator newrelation = (Operator) relation.clone();
-        ArrayList newattr_list = (ArrayList) attr_list.clone();  
+        ArrayList<Attribute> newattr_list = (ArrayList<Attribute>) attr_list.clone();  
         Distinct newdsct = new Distinct(newrelation, newattr_list);
         newdsct.setSchema(newrelation.getSchema());
         return newdsct;
