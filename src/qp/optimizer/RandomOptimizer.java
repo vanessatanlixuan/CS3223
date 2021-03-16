@@ -62,22 +62,23 @@ public class RandomOptimizer {
                     bnj.setRight(right);
                     bnj.setNumBuff(numbuff);
                     return bnj;
-                // case JoinType.SORTMERGEJOIN:
-                //     SortMergeJoin smj = new SortMergeJoin((Join) node);
-                //     smj.setNumBuff(numbuff);
+                case JoinType.SORTMERGEJOIN:
+                    System.out.println("\nSMJ\n");
+                    SortMergeJoin smj = new SortMergeJoin((Join) node);
+                    smj.setNumBuff(numbuff);
 
-                //     ArrayList<Attribute> attrLeft = new ArrayList<Attribute>();
-                //     Attribute aleft = smj.getCondition().getLhs();
-                //     attrLeft.add(aleft);
-                //     ExternalSort es = new ExternalSort(left, attrLeft, numbuff, 1);
-                //     smj.setLeft(es);
+                    ArrayList<Attribute> attrLeft = new ArrayList<Attribute>();
+                    Attribute aleft = smj.getCondition().getLhs();
+                    attrLeft.add(aleft);
+                    ExternalSort es = new ExternalSort(left, attrLeft, numbuff, 1);
+                    smj.setLeft(es);
 
-                //     ArrayList<Attribute> attrRight = new ArrayList<Attribute>();
-                //     Attribute aright = (Attribute) smj.getCondition().getRhs();
-                //     attrRight.add(aright);
-                //     ExternalSort es2 = new ExternalSort(right, attrRight, numbuff, 1);
-                //     smj.setRight(es2);
-                //     return smj;
+                    ArrayList<Attribute> attrRight = new ArrayList<Attribute>();
+                    Attribute aright = (Attribute) smj.getCondition().getRhs();
+                    attrRight.add(aright);
+                    ExternalSort es2 = new ExternalSort(right, attrRight, numbuff, 1);
+                    smj.setRight(es2);
+                    return smj;
                 default:
                     return node;
             }

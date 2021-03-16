@@ -7,7 +7,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.ArrayList;
 
 import qp.utils.Attribute;
 import qp.utils.Batch;
@@ -20,11 +19,11 @@ public class BlockNestedJoin extends Join {
 
     static int filenum = 0;         // To get unique filenum for this operation
     int batchsize;                  // Number of tuples per out batch
-    int leftindex;   // Indices of the join attributes in left table
-    int rightindex;  // Indices of the join attributes in right table
+    int leftindex;                  // Indices of the join attributes in left table
+    int rightindex;                 // Indices of the join attributes in right table
     String rfname;                  // The file name where the right table is materialized
     Batch outbatch;                 // Buffer page for output
-    Batch[] leftBatches;            // Buffer pages for left input stream
+    Batch[] leftbatches;            // Buffer pages for left input stream
     Batch rightbatch;               // Buffer page for right input stream
     ObjectInputStream in;           // File pointer to the right hand materialized file
 
@@ -120,16 +119,16 @@ public class BlockNestedJoin extends Join {
         while (!outbatch.isFull()) {
             // Checks whether we need to read a new block of pages from the left table.
             if (lcurs == 0 && eosr) {
-                leftBatches = new Batch[numBuff - 2];
-                leftBatches[0] = left.next();
+                leftbatches = new Batch[numBuff - 2];
+                leftbatches[0] = left.next();
                 // Checks if there is no more pages from the left table.
-                if (leftBatches[0] == null) {
+                if (leftbatches[0] == null) {
                     eosl = true;
                     return outbatch;
                 }
-                for (int i = 1; i < leftBatches.length; i++) {
-                    leftBatches[i] = left.next();
-                    if (leftBatches[i] == null) {
+                for (int i = 1; i < leftbatches.length; i++) {
+                    leftbatches[i] = left.next();
+                    if (leftbatches[i] == null) {
                         break;
                     }
                 }
@@ -144,12 +143,12 @@ public class BlockNestedJoin extends Join {
                 }
             }
 
-            int numOfLeftTuple = leftBatches[0].size();
-            for (int i = 1; i < leftBatches.length; i++) {
-                if (leftBatches[i] == null) {
+            int numlefttuple = leftbatches[0].size();
+            for (int i = 1; i < leftbatches.length; i++) {
+                if (leftbatches[i] == null) {
                     break;
                 }
-                numOfLeftTuple += leftBatches[i].size();
+                numlefttuple += leftbatches[i].size();
             }
 
             // Continuously probe the right table until we hit the end-of-stream.
@@ -159,25 +158,25 @@ public class BlockNestedJoin extends Join {
                         rightbatch = (Batch) in.readObject();
                     }
 
-                    for (int i = lcurs; i < numOfLeftTuple; i++) {
-                        int leftBatchIndex = i / leftBatches[0].size();
-                        int leftTupleIndex = i % leftBatches[0].size();
-                        Tuple leftTuple = leftBatches[leftBatchIndex].get(leftTupleIndex);
+                    for (int i = lcurs; i < numlefttuple; i++) {
+                        int leftBatchIndex = i / leftbatches[0].size();
+                        int leftTupleIndex = i % leftbatches[0].size();
+                        Tuple leftTuple = leftbatches[leftBatchIndex].get(leftTupleIndex);
 
                         for (int j = rcurs; j < rightbatch.size(); j++) {
-                            Tuple rightTuple = rightbatch.get(j);
+                            Tuple righttuple = rightbatch.get(j);
 
                             // Adds the tuple if satisfying the join condition.
-                            if (leftTuple.checkJoin(rightTuple, leftindex, rightindex)) {
-                                Tuple outTuple = leftTuple.joinWith(rightTuple);
-                                outbatch.add(outTuple);
+                            if (leftTuple.checkJoin(righttuple, leftindex, rightindex)) {
+                                Tuple outtuple = leftTuple.joinWith(righttuple);
+                                outbatch.add(outtuple);
 
                                 // Checks whether the output buffer is full.
                                 if (outbatch.isFull()) {
-                                    if (i == numOfLeftTuple - 1 && j == rightbatch.size() - 1) {
+                                    if (i == numlefttuple - 1 && j == rightbatch.size() - 1) {
                                         lcurs = 0;
                                         rcurs = 0;
-                                    } else if (i != numOfLeftTuple - 1 && j == rightbatch.size() - 1) {
+                                    } else if (i != numlefttuple - 1 && j == rightbatch.size() - 1) {
                                         lcurs = i + 1;
                                         rcurs = 0;
                                     } else {
