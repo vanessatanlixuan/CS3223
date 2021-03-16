@@ -78,9 +78,9 @@ public class Distinct extends Operator {
     }
 
     public Batch next() {
-        if (eos) { //end of file stream, close operator 
+        if (eos) { //end of file stream, close operator
+            close();  
             return null; 
-            close(); 
         }
 
         outbatch = new Batch(batchsize);
