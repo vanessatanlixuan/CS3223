@@ -62,6 +62,8 @@ public class RandomOptimizer {
                 //     bnj.setRight(right);
                 //     bnj.setNumBuff(numbuff);
                 //     return bnj;
+                
+                /*
                 case JoinType.NESTEDJOIN:
                     System.out.println("\nSMJ\n");
                     SortMergeJoin smj = new SortMergeJoin((Join) node);
@@ -79,6 +81,7 @@ public class RandomOptimizer {
                     ExternalSort es2 = new ExternalSort(right, attrRight, numbuff, 1);
                     smj.setRight(es2);
                     return smj;
+                */ 
                 default:
                     return node;
             }
@@ -105,11 +108,12 @@ public class RandomOptimizer {
             return node;
         }
         */
-        else if (node.getOpType() == OpType.ORDERBY) {
+        /*else if (node.getOpType() == OpType.ORDERBY) {
             Operator base = makeExecPlan(((OrderBy) node).getBase());
             ((OrderBy) node).setBase(base);
             return node;
         }
+        */
         else {
             return node;
         }
@@ -407,23 +411,18 @@ public class RandomOptimizer {
         } else if (node.getOpType() == OpType.PROJECT) {
             return findNodeAt(((Project) node).getBase(), joinNum);
         }
-<<<<<<< .merge_file_r8rRKM
         
-=======
->>>>>>> .merge_file_zIvm4m
         else if (node.getOpType() == OpType.DISTINCT){
             return findNodeAt(((Distinct) node).getBase(), joinNum);
         }
         else if (node.getOpType() == OpType.GROUPBY){
             return findNodeAt(((GroupBy) node).getBase(), joinNum);
         }
-<<<<<<< .merge_file_r8rRKM
         
-=======
->>>>>>> .merge_file_zIvm4m
-        else if (node.getOpType() == OpType.ORDERBY){
+        /*else if (node.getOpType() == OpType.ORDERBY){
             return findNodeAt(((OrderBy) node).getBase(), joinNum);
         }
+        */
         else {
             return null;
         }
@@ -455,11 +454,12 @@ public class RandomOptimizer {
             modifySchema(base);
             node.setSchema(base.getSchema());
         } 
-        else if (node.getOpType() == OpType.ORDERBY) {
+        /*else if (node.getOpType() == OpType.ORDERBY) {
             Operator base = ((OrderBy) node).getBase();
             modifySchema(base);
             node.setSchema(base.getSchema());
         }
+        */
         else if (node.getOpType() == OpType.DISTINCT) {
             Operator base = ((Distinct) node).getBase();
             modifySchema(base);

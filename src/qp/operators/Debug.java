@@ -78,6 +78,7 @@ public class Debug {
      * print a node in plan tree
      **/
     public static void PPrint(Operator node) {
+        //System.out.print("Debug"); 
         int optype = node.getOpType();
 
         if (optype == OpType.JOIN) {
@@ -103,7 +104,13 @@ public class Debug {
             PPrint(((Join) node).getRight());
             System.out.print(")");
 
-        } else if (optype == OpType.SELECT) {
+        } 
+        else if (optype == OpType.DISTINCT) {
+            System.out.print("Distinct(");
+            PPrint(((Distinct) node).getBase());
+            System.out.print(")");
+        } 
+        else if (optype == OpType.SELECT) {
             System.out.print("Select(");
             PPrint(((Select) node).getBase());
             System.out.print("  '");
@@ -118,16 +125,13 @@ public class Debug {
         } else if (optype == OpType.SCAN) {
             System.out.print(((Scan) node).getTabName());
         }
-        else if (optype == OpType.DISTINCT) {
-            System.out.print("Distinct(");
-            PPrint(((Distinct) node).getBase());
-            System.out.print(")");
-        }
-        else if (optype == OpType.ORDERBY) {
+        
+        /*else if (optype == OpType.ORDERBY) {
             System.out.print("OrderBy(");
             PPrint(((OrderBy) node).getBase());
             System.out.print(")");
         }
+        */
         else if (optype == OpType.GROUPBY) {
             System.out.print("GroupBy(");
             PPrint(((GroupBy) node).getBase());

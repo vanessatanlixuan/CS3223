@@ -1,578 +1,332 @@
-/*
-to perform external sort on a relation table
-*/
-
 package qp.operators;
 
-import qp.utils.*;
+import qp.utils.Attribute;
+import qp.utils.Batch;
+import qp.utils.Tuple;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.PriorityQueue;
-import java.util.HashMap;
+import java.util.*;
 
-public class ExternalSort extends Operator {
-    
-    Operator base; //the relation (table) that we need to sort
-    ArrayList<Attribute> attrset; //the attributes that we are sorting on
-    int batchSize; //the size of every output page
-    int numBuff; //number of buffer pages
-    int numRuns; //number of sorted runs
-    //Batch inBatch; //the page containing the input
-    Batch outBatch; //the page containing the output
-    int lastRoundIndex;
-    int lastSortedPage;
-    int nextOutputPage = 0;
-    boolean allSorted = false;
-    //lastPageIndexInEachRun stores the number of pages in each sorted run of round 0
-    int order; // order = 1 if asc, -1 if desc
+import static java.lang.Math.min;
 
-    HashMap<Integer, Integer> lastPageIndexInEachRun = new HashMap<Integer, Integer>();
-    /**
-     * index of the attributes in the base operator(relation/table)
-     * * that are to be sorted
-     **/
-    //int[] attrIndex;
-    ArrayList<Integer> attrIndex;
+public class ExternalSort extends Operator{
+    private Operator base;
+    public int bufferNum;
+    private int filenum;
+    private int batchSize; // num of tuples in a single batch.
+    private Comparator<Tuple> comparator;
+    private List<File> sortedRunsFile;
+    private ObjectInputStream resultStream;
+    private ArrayList<Integer> attrIndex;
+    private String identifier;
 
 
-
-    public ExternalSort(Operator base, ArrayList<Attribute> as, int numBuff, int order) {
-        super(OpType.SORT);
-        this.numBuff = numBuff;
+    public ExternalSort(Operator base, int bufferNum, int opType) {
+        super(opType);
+//        System.out.print("External sort schema");
         this.base = base;
-        this.attrset = as;
-        this.order = order;
+        this.bufferNum = bufferNum;
+        this.identifier = "";
     }
 
-    public Operator getBase() { //obtain the relation
+    public ExternalSort(Operator base, int buffernum, ArrayList<Integer> attrIndex, String identifier, int opType) {
+        super(opType);
+//        System.out.print("External sort schema");
+//        Debug.PPrint(base.getSchema());
+        this.base = base;
+        this.bufferNum = buffernum;
+        this.attrIndex = attrIndex;
+        this.identifier = identifier;
+    }
+
+    public Operator getBase() {
         return base;
     }
 
-    public void setBase(Operator base) { //set the relation
+    public void setBase(Operator base) {
         this.base = base;
     }
 
-    public ArrayList<Attribute> getSortAttr() { //get the attributes that we are sorting on
-        return attrset;
-    }
-
-    public int getNumBuff() {
-        return numBuff;
-    }
-
-    public void setNumBuff(int num) {
-        this.numBuff = num;
-    }
-
-
-    /*
-    * open external sort operator
-    */
-    @Override 
+    @Override
+    // open() for pre-processing.
     public boolean open() {
-        
-        if (!base.open()) return false; //if table is not open, return false --> cant perform sorting on unopened table
-        Schema baseSchema = base.getSchema();
-        /** set number of tuples per page(batch) **/
-        int tuplesize = baseSchema.getTupleSize(); // get size (num bytes) of tuple of the relation
-        batchSize = Batch.getPageSize() / tuplesize; 
-        //batchsize is the number of tuples in a page.
-
-
-        //create an int array consisting of indices of req'd attributes to sort by
-        attrIndex = new ArrayList<Integer>(); 
-        //for loop to obtain indices of attributes
-        for (int i = 0; i < attrset.size(); i++) {
-            Attribute attr = attrset.get(i);
-            int index = baseSchema.indexOf(attr.getBaseAttribute()); //get the index of the attribute
-            attrIndex.add(index);
+        if (!base.open()) {
+            System.out.println("(External Sort) Failed to open External sort");
+            return false;
         }
-        
-        //1. load tuples of schema into pages
-            // need to know how many tuples can one buffer page hold 
-            // need to consider max num of buffer pages that system can take
-            // need to calc how many rounds of internal sort needed (n)
-        //2. perform internal sort on the pages for n times
-        //3. write out to disk each time
-        ////////////// stage 2 of sort ////////////////////
-        //4. assign one buffer page for output, rest of the buffer pages for input
-        //5. while no active input pages is empty, find min entry across the input buffer pages
-        //   cut and paste that entry to the output buffer
-        //   if there is empty input buffer page, load one more page into memory
-        //6. when buffer page for output is full, write out to disk
-        //7. 
+
+        this.filenum = 0;
+        this.sortedRunsFile = new ArrayList<>();
+        this.comparator = new TupleSortComparator(getAttributeList());
+        this.batchSize = Batch.getPageSize() / this.base.getSchema().getTupleSize();
+
         generateSortedRuns();
-        recursivelyMerge(0, lastPageIndexInEachRun);
-        return this.allSorted;
-    }
+        mergeRuns();
 
-    public void generateSortedRuns() { //returns number of sorted runs
-        boolean eos = false; //have we reached the end of the table yet?
-        int index = 0; //index for first filename
-        //numRounds = number of internal sort rounds needed 
-        //1. load as many batches as possible into buffer
-        ArrayList<Batch> pagesInBuffer = new ArrayList<Batch>();
-        
-        Batch incomingPage;
+        // At the end, after the merging process, we should only have 1 run left.
+        if (sortedRunsFile.size() != 1) {
+            return false;
+        }
 
-        int counter = 0;
-
-        while (eos == false){ //while there are still pages in table(base)
-            incomingPage = base.next();
-            // if the page being read is null aka no more pages
-            if(incomingPage == null){
-                
-                //sort the pages already in Buffer + write out
-                internalSort(pagesInBuffer, index); //counter = num of pages that buffer need to output
-                //clear the pages in buffer
-                index ++;
-                pagesInBuffer.clear();
-                eos = true;
-                break;
-            }
-            if(counter < numBuff){
-                pagesInBuffer.add(incomingPage);
-                counter++;
-            }
-            else{
-                //sort the pagesInBuffer + write out
-                internalSort(pagesInBuffer, index);
-                index++;
-                //set counter back to 0
-                counter = 0;
-                //clear the pages in buffer
-                pagesInBuffer.clear();
-            }
+        try {
+            resultStream = new ObjectInputStream(new FileInputStream(sortedRunsFile.get(0)));
+        } catch (IOException e) {
+            System.out.println("IO Error when writing sorted file onto stream");
+            return false;
         }
-    }
-
-    public void internalSort(ArrayList<Batch> pagesInBuffer, int fileIndex){
-        //input arraylist of pages in the buffer
-        //output: write out pages of sorted tuples
-        if(lastPageIndexInEachRun.containsKey(Integer.valueOf(fileIndex)) == false){
-            lastPageIndexInEachRun.put(fileIndex, 0);        
-        }
-        ArrayList<Tuple> tupInRun = new ArrayList<Tuple>();
-        Tuple currTup;
-        for(Batch b : pagesInBuffer){
-            //add all the tuples in page into tuples in the run
-            for (int j = 0; j < batchSize; j++){
-                currTup = b.get(j);
-                if ((currTup == null) == false){
-                    tupInRun.add(currTup);
-                }
-                else{
-                    continue;
-                }
-            }
-        }
-        //now we have tupInRun list containing all the tuples to be sorted in a run
-        tupComparator tupleCompare = new tupComparator(attrIndex, order);
-        Collections.sort(tupInRun, tupleCompare);
-        //output to fileoutputstream
-        ArrayList<Batch> listOfBatches = generateListOfBatches(tupInRun, batchSize);
-        int cntr = 0;
-        Iterator<Batch> iter = listOfBatches.iterator();
-        while(iter.hasNext()){
-            Batch currBatch = iter.next();
-            try{
-                String fname = "ESrun-round-0-run-" + String.valueOf(fileIndex) + "-page-" + String.valueOf(cntr);
-                FileOutputStream file = new FileOutputStream(fname);
-                ObjectOutputStream out = new ObjectOutputStream(file);
-                out.writeObject(currBatch);
-                out.close();
-                   
-            }
-            catch (IOException io){
-                System.out.println("Error writing out to temp file for ES round 0 - sorted runs.");
-            } 
-            lastPageIndexInEachRun.replace(fileIndex, cntr);
-            //lastPageIndex = cntr;
-            cntr++;
-        }
-    }
-
-    public ArrayList<Batch> generateListOfBatches(ArrayList<Tuple> tupInRun, int batchSize){
-        ArrayList<Batch> listOfBatches = new ArrayList<Batch>();
-        ArrayList<Tuple> oneBatch = new ArrayList<Tuple>();
-        int ctr = 0;
-        for (int i = 0; i < tupInRun.size(); i++){
-            while(ctr < batchSize){
-                Tuple currTup = tupInRun.get(i);
-                ctr ++;
-                oneBatch.add(currTup); 
-            }
-            Batch newBatch = createBatch(oneBatch);
-            listOfBatches.add(newBatch);
-            oneBatch.clear();
-        }
-        return listOfBatches;
-    }
-
-    public Batch createBatch(ArrayList<Tuple> oneBatch){
-        int numTuples = oneBatch.size(); 
-        Batch newBatch = new Batch(numTuples);
-        for (Tuple tup: oneBatch){
-            newBatch.add(tup);
-        }
-        return newBatch;
-    }
-
-    public void recursivelyMerge(int currRoundNum, HashMap<Integer, Integer> lastPageIndexInEachMergingRun){
-        int newRoundNum = currRoundNum +1;
-        HashMap<Integer, Integer> updatedLastPageIndexInEachMergingRun = merge(currRoundNum, lastPageIndexInEachMergingRun); //currRoundNum gives info on where is the thing stored
-        if (updatedLastPageIndexInEachMergingRun.size() == 1){
-            //able to merge within this run
-            //update the lastRoundIndex to find where the final results are stored in directory
-            this.lastRoundIndex = newRoundNum;
-            this.lastSortedPage = updatedLastPageIndexInEachMergingRun.get(0);
-            this.allSorted = true;
-        }
-        else{
-            recursivelyMerge(newRoundNum, updatedLastPageIndexInEachMergingRun);
-        }
-    }
-
-    public HashMap<Integer, Integer> merge(int currRoundNum, HashMap<Integer, Integer> lastPageIndexInEachMergingRun){
-        //currRoundIndex is the INDEX OF THE ROUND THAT WE WANT TO MERGE
-        int startRunIndex = 0;
-        int endRunIndex = startRunIndex + numBuff-1;
-        HashMap<Integer, Integer> newLastPageIndices = new HashMap<Integer, Integer>();
-        int newRunIndex = 0;
-        while(startRunIndex < numBuff-1){
-            if(endRunIndex > numRuns){
-                endRunIndex = numRuns;
-            }
-            int newLastPageNumberOfRun  = mergeRuns(startRunIndex, endRunIndex, currRoundNum, newRunIndex, lastPageIndexInEachMergingRun);
-            newLastPageIndices.put(newRunIndex, newLastPageNumberOfRun);
-            if(endRunIndex == numRuns){
-                break; //break out from while loop when all the sets of runs are merged within themselves
-            }
-            else{
-                startRunIndex = endRunIndex + 1; //then go through the while loop again
-            }
-            newRunIndex++;
-        }
-        return newLastPageIndices; //run index mapped to num pages in that run
-    }
-    /*
-    * return newLastPageNumberOfRun
-    * saves file with newRoundNum, newRunIndex, newPageNum(s)
-    */ 
-    public int mergeRuns(int startRunIndex, int endRunIndex, int currRoundNum, int newRunIndex, HashMap<Integer, Integer> lastPageIndexInEachMergingRun){
-        int numBuffInUse = endRunIndex - startRunIndex + 1;
-        Batch[] batchesInBuffer = new Batch[numBuffInUse];
-        ObjectInputStream[] batchesInStream = new ObjectInputStream[numBuffInUse];
-        boolean[] allPagesRead = new boolean[numBuffInUse];
-        Comparator<TupleWInfo> tupWICompare = new tupWIComparator(attrIndex, order);
-        PriorityQueue<TupleWInfo> intermediate = new PriorityQueue<TupleWInfo>(batchSize, tupWICompare);
-
-        for(int runIndex = startRunIndex; runIndex <= endRunIndex; runIndex++){
-            //retrieve first page of each run
-            int indexInArray = runIndex - startRunIndex;
-            String inputFile = "ESrun-round-"+ Integer.valueOf(currRoundNum) +"-run-" + String.valueOf(runIndex) + "-page-" + String.valueOf(0); 
-            try{
-                ObjectInputStream in = new ObjectInputStream(new FileInputStream(inputFile));
-                batchesInStream[indexInArray] = in;
-                batchesInBuffer[indexInArray] = (Batch) in.readObject();
-                //the object read in is a batch(page)
-                in.close();
-            }
-            catch(IOException io){
-                System.err.printf("in mergeRuns of ES - error in reading the file %s.", inputFile);
-                System.exit(1);
-            }
-            catch(ClassNotFoundException c){
-                System.out.printf("in mergeRuns of ES: Error in deserialising temporary file %s.", inputFile);
-                System.exit(1);
-            }
-            try{
-            // put in first tuple in batch into the priority queue
-                ArrayList<Tuple> curr = batchesInBuffer[indexInArray].getAllTuples();
-                if(curr.isEmpty() == false){
-                    //add first tuple of batch into PQ, with info: roundNum, index of where its page is stored in array
-                    //and the page num of this tuple
-                    //TupleWInfo(Tuple original, int roundNum, int runNum, int actualRunNum, int pageNum, int posInPage)
-                    intermediate.add(new TupleWInfo(curr.get(0), currRoundNum, indexInArray, runIndex, 0, 0));
-                }
-            }
-            catch(IndexOutOfBoundsException e){
-                System.out.printf("IndexOutOfBoundsException when trying to add first tuple into PQ");
-            }
-        }
-        //now we have a list of batches (havent start reading)(1st page of each run)
-        // a hashmap of how many pages there are in each run
-        //outputBatch = the batch to writeout
-        Batch outputBatch = new Batch(batchSize);
-        ObjectOutputStream output;
-
-        int newRoundNum = currRoundNum +1;
-        //int newRunNum = newRunIndex; <-- already in input
-        int newPageNum = 0;
-        
-        while(intermediate.isEmpty() == false){
-            TupleWInfo smallestTupWI = intermediate.poll();
-            if(outputBatch.isFull()){
-                //writeout
-                String outputFileName = "ESrun-round-"+ Integer.valueOf(newRoundNum) +"-run-" + String.valueOf(newRunIndex) + "-page-" + String.valueOf(newPageNum); 
-                try{
-                    output = new ObjectOutputStream(new FileOutputStream(outputFileName));
-                    output.writeObject(outputBatch);
-                }
-                catch (IOException io){
-                    System.out.printf("in ES: mergeRuns: unable to write out page of a sorted run, %s", outputFileName);
-                }
-                outBatch.clear();
-            }
-            
-            outputBatch.add(smallestTupWI.originalTuple);
-            
-            int buffIndexToAddFrom = smallestTupWI.runNum; //runNum = index of the run in array
-            int pageNumOfTuple = smallestTupWI.pageNum;
-            int indexOfNewTupleToAdd = smallestTupWI.posInPage + 1;
-            int currActualRunNum = smallestTupWI.actualRunNum;
-            Batch batchToAddFrom = batchesInBuffer[buffIndexToAddFrom];
-            
-            if(indexOfNewTupleToAdd > batchToAddFrom.getNumTuples()-1){
-                //if the index of new tuple to add is more than the last tuple index in page
-                //loadNextPage()
-                int nextBatchIndex = smallestTupWI.pageNum + 1;
-                Integer lastBatchPageNum = lastPageIndexInEachMergingRun.get(Integer.valueOf(currActualRunNum));
-                //if all the pages in the run has been read
-                if (nextBatchIndex > lastBatchPageNum){
-                    //means that all pages in run already read
-                    allPagesRead[smallestTupWI.runNum] = true;
-                    //read next available 
-                    continue;
-                }
-                else{ //there is still pages in run not read: load next page
-                    String inputFile = "ESrun-round-"+ Integer.valueOf(smallestTupWI.roundNum) +"-run-" + String.valueOf(currActualRunNum) + "-page-" + String.valueOf(nextBatchIndex); 
-                    try{
-                        ObjectInputStream in = new ObjectInputStream(new FileInputStream(inputFile));
-                        batchesInStream[buffIndexToAddFrom] = in;
-                        batchesInBuffer[buffIndexToAddFrom] = (Batch) in.readObject();
-                        //the object read in is a batch(page)
-                        in.close();
-                    }
-                    catch(IOException io){
-                        System.err.printf("in mergeRuns of ES - error in reading the file %s.", inputFile);
-                        System.exit(1);
-                    }
-                    catch(ClassNotFoundException c){
-                        System.out.printf("in mergeRuns of ES: Error in deserialising temporary file %s.", inputFile);
-                        System.exit(1);
-                    }
-                    try{
-                        // put in first tuple in batch into the priority queue
-                        ArrayList<Tuple> curr = batchesInBuffer[buffIndexToAddFrom].getAllTuples();
-                        if(curr.isEmpty() == false){
-                            //add first tuple of batch into PQ, with info: roundNum, index of where its page is stored in array
-                            //and the page num of this tuple
-                            //TupleWInfo(Tuple original, int roundNum, int runNum, int actualRunNum, int pageNum, int posInPage)
-                            intermediate.add(new TupleWInfo(curr.get(0), currRoundNum, buffIndexToAddFrom, currActualRunNum, nextBatchIndex, 0));
-                        }
-                    }
-                    catch(IndexOutOfBoundsException e){
-                        System.out.printf("IndexOutOfBoundsException when trying to add first tuple into PQ");
-                    }
-                    
-                }
-            }
-            else{
-                Tuple tup = batchToAddFrom.get(indexOfNewTupleToAdd);
-                //TupleWInfo(Tuple original, int roundNum, int runNum, int actualRunNum, int pageNum, int posInPage)
-                TupleWInfo tupToAdd = new TupleWInfo(tup, currRoundNum, buffIndexToAddFrom, currActualRunNum, pageNumOfTuple, indexOfNewTupleToAdd);
-                intermediate.add(tupToAdd);
-            }
-        }
-        return newPageNum;
-    }
-
-    public Batch next(){
-        String inputFile;
-        ObjectInputStream in;
-        //read each page in the output
-        inputFile = "ESrun-round-"+ Integer.valueOf(this.lastRoundIndex) +"-run-" + String.valueOf(0) + "-page-" + String.valueOf(this.nextOutputPage);
-        try{
-            //read the page
-            in = new ObjectInputStream(new FileInputStream(inputFile));
-            outBatch = (Batch) in.readObject();
-            //the object read in is a batch(page)
-            in.close();
-        }
-        catch(IOException io){
-            System.err.printf("ES next() - error in reading the file %s.", inputFile);
-            System.exit(1);
-        }
-        catch(ClassNotFoundException c){
-            System.out.printf("ES next(): Error in deserialising temporary file %s.", inputFile);
-            System.exit(1);
-        } 
-        this.nextOutputPage ++;
-        return outBatch;
-    }
-
-    public boolean close(){
-        super.close();
         return true;
     }
 
-    @Override 
-    public Object clone(){
-        Operator newBase = (Operator) base.clone();
-        ArrayList<Attribute> newAttrList = new ArrayList<Attribute>();
-        newAttrList.addAll(attrset);
-        int newOrder = order;
-        int newNumBuff = numBuff;
-        ExternalSort newES = new ExternalSort(newBase, newAttrList, newNumBuff, newOrder);
-        Schema newSchema = newBase.getSchema();
-        newES.setSchema(newSchema);
-        return newES;
-    }
-    
-}
-//need to create this informed tuple to know which buffer to get next tuple from
-class TupleWInfo {
-    public Tuple originalTuple;
-    public int runNum;
-    public int pageNum;
-    public int roundNum; //roundNum is the round number of the round we are trying to merge
-    public int posInPage;
-    public int actualRunNum;
-    public TupleWInfo(Tuple original, int roundNum, int runNum, int actualRunNum, int pageNum, int posInPage){
-        this.originalTuple = original;
-        this.roundNum = roundNum;
-        this.runNum = runNum;
-        this.pageNum = pageNum;
-        this.actualRunNum = actualRunNum;
-        this.posInPage = posInPage;
-    }
-}
-
-class tupWIComparator implements Comparator<TupleWInfo>{
-    //taken from tuple class
-    /**
-     * Comparing tuples in different tables with multiple conditions, used for join condition checking
-     **/
-    //list of indices of attributes to sort by
-    ArrayList<Integer> attrIndex;
-    int order; //1 if asc, -1 if desc
-
-    //constructor: input: array
-    public tupWIComparator(ArrayList<Integer> attrIndexList, int order){
-        //convert array into arraylist to use it in compare
-        this.attrIndex = attrIndexList;
-        this.order = order; 
+    public ArrayList<Integer> getAttributeList() {
+        if (this.attrIndex != null) {
+            return attrIndex;
+        } else {
+            ArrayList<Attribute> attrSet = base.getSchema().getAttList();
+            ArrayList<Integer> result = new ArrayList<>();
+            for (Attribute attr : attrSet) {
+                result.add(base.getSchema().indexOf(attr));
+            }
+            return result;
+        }
     }
 
-    public int compare(TupleWInfo leftTup, TupleWInfo rightTup){
-        /*
-        if (leftIndex.size() != rightIndex.size()) {
-            System.out.println("Tuple: Unknown comparision of the tuples");
-            System.exit(1);
+    @Override
+    public Batch next() {
+        return nextBatchFromStream(resultStream);
+    }
+
+    @Override
+    public boolean close() {
+        try {
+            for (File file : sortedRunsFile) {
+                file.delete();
+            }
+            resultStream.close();
+        } catch (IOException e) {
+            System.out.println("Error in closing result file stream.");
+        }
+        return true;
+    }
+
+    private File writeFile(List<Batch> batchesToWrite) {
+        try {
+            File tempBatchFile = new File("ExternalSort" + "-" + this.filenum  + identifier);
+
+            ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(tempBatchFile));
+            for (Batch batch : batchesToWrite) {
+                out.writeObject(batch);
+            }
+            this.filenum++;
+            // initialize files for temp batches
+            out.close();
+            return tempBatchFile;
+        } catch(IOException e) {
+            System.out.println("Error in writing external sort batches to files");
+        }
+        return null;
+    }
+
+    private void generateSortedRuns() {
+        // current batch
+        Batch currentBatch = this.base.next();
+        while (currentBatch != null) {
+            // Initialize the buffer according to the amount of buffer we have.
+            ArrayList<Batch> run = new ArrayList<>();
+            for (int i = 0; i < this.bufferNum; i++) {
+                if (currentBatch == null) {
+                    break;
+                } else {
+                    run.add(currentBatch);
+                    currentBatch = this.base.next();
+                }
+            }
+
+            List<Tuple> tuples = new ArrayList<>();
+            for (Batch batch : run) {
+                // for each batch, append tuples to a list of tuples.
+                for (int j = 0; j < batch.size(); j++) {
+                    tuples.add(batch.get(j));
+                }
+            }
+            Collections.sort(tuples, this.comparator);
+
+            // after sorting, append back to the batches.
+            List<Batch> batchesFromBuffer = new ArrayList<>();
+            Batch newCurrentBatch = new Batch(this.batchSize);
+            for (Tuple tuple : tuples) {
+                newCurrentBatch.add(tuple);
+                if (newCurrentBatch.isFull()) {
+                    batchesFromBuffer.add(newCurrentBatch);
+                    newCurrentBatch = new Batch(this.batchSize);
+                }
+            }
+
+            // last page may not always be full.
+            if (!newCurrentBatch.isEmpty()) {
+                batchesFromBuffer.add(newCurrentBatch);
+            }
+
+            // write sorted runs (NewCurrentBatch) to temp file.
+            if (batchesFromBuffer.size() < 1) {
+//                System.out.println("NOT writing files");
+                return;
+            } else {
+                File tempBatchFile = writeFile(batchesFromBuffer);
+                this.sortedRunsFile.add(tempBatchFile);
+            }
+        }
+    }
+
+    private void mergeRuns() {
+        int AvailableBuffers = this.bufferNum - 1;
+        int numOfMergeRuns = 0;
+
+        while (this.sortedRunsFile.size() > 1) {
+            List<File> sortedRunsThisRound = new ArrayList<>();
+            for (int numOfMerges = 0; numOfMerges * AvailableBuffers < this.sortedRunsFile.size(); numOfMerges++) {
+                int end = min((numOfMerges + 1) * AvailableBuffers, sortedRunsFile.size());
+                List<File> extractRuns = this.sortedRunsFile.subList(numOfMerges * AvailableBuffers, end);
+                File resultantRun = mergeSortedRuns(extractRuns, numOfMergeRuns, numOfMerges);
+                sortedRunsThisRound.add(resultantRun);
+            }
+            for (File file : this.sortedRunsFile) {
+                file.delete();
+            }
+
+            numOfMergeRuns++;
+            this.sortedRunsFile = sortedRunsThisRound;
+        }
+    }
+
+    // input: files of sorted runs, each with a certain number of batches.
+    // output: one single file of merged runs.
+    private File mergeSortedRuns(List<File> sortedRuns, int numOfMergeRuns, int numOfMerges) {
+        int numOfInputBuff = this.bufferNum - 1;
+        if (sortedRuns.isEmpty()) {
+            System.out.println("Sorted run is empty, nothing to sort here.");
+            return null;
+        }
+        if (sortedRuns.size() > numOfInputBuff) {
+            System.out.println("Number of sorted runs must be less than or equal to number of buffer - 1");
+            return null;
+        }
+
+        ArrayList<Batch> inputBatches = new ArrayList<>();
+        List<ObjectInputStream> inputs = new ArrayList<>();
+
+        // Generated and input stream of sorted runs.
+        for (File file : sortedRuns) {
+            try {
+                ObjectInputStream input = new ObjectInputStream(new FileInputStream(file));
+                inputs.add(input);
+            } catch (IOException e) {
+                System.out.println("Error reading file into input stream.");
+            }
+        }
+
+        // Feed in new batch into inputBatches.
+        for (int sortedRunNum = 0; sortedRunNum < sortedRuns.size(); sortedRunNum++) {
+            Batch nextBatch = nextBatchFromStream(inputs.get(sortedRunNum));
+            while (nextBatch != null) {
+                inputBatches.add(nextBatch);
+                nextBatch = nextBatchFromStream(inputs.get(sortedRunNum));
+            }
+        }
+
+        // Write all the tuples in inputBatches into the array of tuples. At the end, clear the tuples from
+        // inputBatches.
+        ArrayList<Tuple> inputTuples = new ArrayList<>();
+        for (Batch batch : inputBatches) {
+            if (batch == null) {
+                continue;
+            }
+            while (!batch.isEmpty()) {
+                int k = batch.size() - 1; 
+                Tuple tuple = batch.get(k);
+                inputTuples.add(tuple);
+                batch.remove(-1);
+                
+            }
+        }
+
+        // Sort the array of tuples in desc order.
+        inputTuples.sort(this.comparator.reversed());
+
+
+        // A single output buffer to store the sorted tuples. When it is full, we will spill it over to file.
+        Batch outputBuffer = new Batch(this.batchSize);
+        // The result file to store the merged sorted runs.
+        File resultFile = new File("ExternalSort_sortedRuns" + "_" + numOfMergeRuns + "_" + numOfMerges + identifier);
+        ObjectOutputStream resultFileStream;
+        try {
+            resultFileStream = new ObjectOutputStream(new FileOutputStream(resultFile, true));
+        } catch (FileNotFoundException e) {
+            System.out.println("Unable to find file for output stream.");
+            return null;
+        } catch (IOException e) {
+            System.out.println("IO error occurred while creating output stream.");
+            return null;
+        }
+
+        // In each iteration we pop out the smallest element and add it into the output buffer
+        // Once the buffer is filled write it into disk.
+        while (!inputTuples.isEmpty()) {
+            Tuple currentTuple = inputTuples.remove(inputTuples.size() - 1);
+            outputBuffer.add(currentTuple);
+            if (outputBuffer.isFull()) {
+                try {
+                    resultFileStream.writeObject(outputBuffer);
+                    resultFileStream.reset();
+                } catch (IOException e) {
+                    System.out.println("Error in writing to output file during merging.");
+                    return null;
+                }
+                outputBuffer.clear();
+            }
+        }
+
+        if (!outputBuffer.isEmpty()) {
+            try {
+                resultFileStream.writeObject(outputBuffer);
+                resultFileStream.reset();
+            } catch (IOException e) {
+                System.out.println("Error in writing to output file during merging.");
+                return null;
+            }
+        }
+        return resultFile;
+    }
+
+    protected Batch nextBatchFromStream(ObjectInputStream stream) {
+        try {
+            Batch batch = (Batch) stream.readObject();
+            if (batch.isEmpty()) {
+                return null;
+            }
+            return batch;
+        } catch (ClassNotFoundException e) {
+            System.out.println("Unable to serialize the read object.");
+            return null;
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    static class TupleSortComparator implements Comparator<Tuple>{
+        private ArrayList<Integer> index_sort;
+        TupleSortComparator(ArrayList<Integer> index_sort_in) {
+            this.index_sort = index_sort_in;
+        }
+
+        @Override
+        public int compare(Tuple firstTuple, Tuple secondTuple) {
+            for (int index : this.index_sort) {
+                int compareValue = Tuple.compareTuples(firstTuple, secondTuple, index);
+                if (compareValue != 0) {
+                    return compareValue;
+                }
+            }
             return 0;
         }
-        */
-        Tuple left = leftTup.originalTuple;
-        Tuple right = rightTup.originalTuple;
-        for (int i = 0; i < attrIndex.size(); ++i) {
-            Object leftdata = left.dataAt(attrIndex.get(i));
-            Object rightdata = right.dataAt(attrIndex.get(i));
-            if (leftdata.equals(rightdata)) continue;
-            if(this.order == 1){
-                if (leftdata instanceof Integer) {
-                    return ((Integer) leftdata).compareTo((Integer) rightdata);
-                } else if (leftdata instanceof String) {
-                    return ((String) leftdata).compareTo((String) rightdata);
-                } else if (leftdata instanceof Float) {
-                    return ((Float) leftdata).compareTo((Float) rightdata);
-                } else {
-                    System.out.println("ES-comparator: Unknown comparision of the tupleWI in ExternalSort");
-                    System.exit(1);
-                    return 0;
-                }
-            }
-            else if(this.order == -1){
-                if (leftdata instanceof Integer) {
-                    return ((Integer) rightdata).compareTo((Integer) leftdata);
-                } else if (leftdata instanceof String) {
-                    return ((String) rightdata).compareTo((String) leftdata);
-                } else if (leftdata instanceof Float) {
-                    return ((Float) rightdata).compareTo((Float) leftdata);
-                } else {
-                    System.out.println("ES-comparator DSC: Unknown comparision of the tupleWI in ExternalSort");
-                    System.exit(1);
-                    return 0;
-                }
-            }
-            else{
-                System.out.println("ES-comparator: tupleWI order is not defined properly to be 1 or -1");
-            }
-        }
-        return 0;
-    }
-}
-class tupComparator implements Comparator<Tuple>{
-    //taken from tuple class
-    /**
-     * Comparing tuples in different tables with multiple conditions, used for join condition checking
-     **/
-    //list of indices of attributes to sort by
-    ArrayList<Integer> attrIndex;
-    int order;
-    //constructor: input: array
-    public tupComparator(ArrayList<Integer> attrIndexList, int order){
-        //convert array into arraylist to use it in compare
-        this.attrIndex = attrIndexList;
-        this.order = order;
-    }
-
-    public int compare(Tuple left, Tuple right){
-        /*
-        if (leftIndex.size() != rightIndex.size()) {
-            System.out.println("Tuple: Unknown comparision of the tuples");
-            System.exit(1);
-            return 0;
-        }
-        */
-        for (int i = 0; i < attrIndex.size(); ++i) {
-            Object leftdata = left.dataAt(attrIndex.get(i));
-            Object rightdata = right.dataAt(attrIndex.get(i));
-            if (leftdata.equals(rightdata)) continue;
-            if(order == 1){
-                if (leftdata instanceof Integer) {
-                    return ((Integer) leftdata).compareTo((Integer) rightdata);
-                } else if (leftdata instanceof String) {
-                    return ((String) leftdata).compareTo((String) rightdata);
-                } else if (leftdata instanceof Float) {
-                    return ((Float) leftdata).compareTo((Float) rightdata);
-                } else {
-                    System.out.println("ES-Comparator ASC: Unknown comparision of the tuples in ExternalSort");
-                    System.exit(1);
-                    return 0;
-                }
-            }
-            else if (order == -1){
-                if (leftdata instanceof Integer) {
-                    return ((Integer) rightdata).compareTo((Integer) leftdata);
-                } else if (leftdata instanceof String) {
-                    return ((String) rightdata).compareTo((String) leftdata);
-                } else if (leftdata instanceof Float) {
-                    return ((Float) rightdata).compareTo((Float) leftdata);
-                } else {
-                    System.out.println("ES comparator DSC: Unknown comparision of the tuples in ExternalSort");
-                    System.exit(1);
-                    return 0;
-                }
-            }
-            else{
-                System.out.println("ES-comparator: tuple order is not defined properly to be 1 or -1");
-            }
-        }
-        return 0;
     }
 }

@@ -29,9 +29,10 @@ public class Tuple implements Serializable {
         return _data.get(index);
     }
 
-    public Tuple elementAt(int i) {
+    /*public Tuple elementAt(int i) {
         return tuple.elementAt(i);
     }
+    */
 
     /**
      * Checks whether the join condition is satisfied or not with one condition

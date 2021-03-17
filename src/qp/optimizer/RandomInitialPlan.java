@@ -50,10 +50,6 @@ public class RandomInitialPlan {
      * prepare initial plan for the query
      **/
     public Operator prepareInitialPlan() {
-<<<<<<< HEAD
-
-=======
->>>>>>> 10875c71db7570ebb95730704e0f26d785fd7bbb
         /*
         if (sqlquery.isDistinct()) {
             System.err.println("Distinct is not implemented.");
@@ -71,10 +67,6 @@ public class RandomInitialPlan {
             System.exit(1);
         }
         */
-<<<<<<< HEAD
-
-=======
->>>>>>> 10875c71db7570ebb95730704e0f26d785fd7bbb
         tab_op_hash = new HashMap<>();
         createScanOp();
         createSelectOp();
@@ -82,18 +74,11 @@ public class RandomInitialPlan {
             createJoinOp();
         }
         createGroupByOp();
-        createOrderByOp();
+        //createOrderByOp();
         createProjectOp();
-<<<<<<< HEAD
         if (sqlquery.isDistinct()){
             createDistinctOp();
         }
-=======
-        if(sqlquery.isDistinct()){
-            createDistinctOp();
-        }
-            
->>>>>>> 10875c71db7570ebb95730704e0f26d785fd7bbb
         return root;
     }
 
@@ -163,7 +148,7 @@ public class RandomInitialPlan {
             root = op1;
     }
 
-    public void createOrderByOp(){
+    /*public void createOrderByOp(){
         int order = 1;
         if(sqlquery.isDesc() == true){
             order = -1;
@@ -174,11 +159,12 @@ public class RandomInitialPlan {
             root = op1;
         }
     }
+    */
 
     
     public void createDistinctOp(){
         if(sqlquery.isDistinct() == true){
-            Distinct op1 = new Distinct(root, projectlist);
+            Distinct op1 = new Distinct(root, projectlist, OpType.DISTINCT);
             op1.setSchema(root.getSchema());
             root = op1;
         }

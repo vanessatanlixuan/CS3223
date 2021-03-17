@@ -16,7 +16,7 @@ public class GroupBy extends Distinct {
      *
      * @param base is the base operator.
      */
-    public GroupBy(Operator relation, ArrayList attr_list) {
-        super(relation, attr_list);
+    public GroupBy(Operator base, ArrayList attr_list, int type) {
+        super(base, attr_list, type);
     }
 }

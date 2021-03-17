@@ -19,10 +19,9 @@ public class Distinct extends Operator {
     //sorted base 
     //private Operator sortedbase; 
     ExternalSort sortedbase; 
-    ExternalSort.TupleSortComparator comparator;
 
     // number of buffers 
-    private int bufferNo; 
+    private int numBuff; 
 
     // unsorted base; 
     private Operator base; 
@@ -43,13 +42,6 @@ public class Distinct extends Operator {
         this.attr_list = attr_list;
     }
 
-    public Distinct(Operator base, ArrayList<Attribute> attr_list, int type, int buffno){
-        super(type);
-        this.base = base; 
-        this.attr_list = attr_list;
-        this.numBuff = buffno; 
-    }
-
     public Operator getBase() {
         return base;
     }
@@ -62,16 +54,16 @@ public class Distinct extends Operator {
         this.optype = type;
     }
 
-    public int getNumBuff(){
-        return numBuff; 
-    }
-
-    public int setNumBuff(int no){
-        this.numBuff = no; 
-    }
-
     public Schema getSchema() {
         return schema;
+    }
+
+    public void setNumBuff(int numBuff) {
+        this.numBuff = numBuff;
+    }
+
+    public int getNumBuff() {
+        return this.numBuff;
     }
 
     public ArrayList<Attribute> getProjAttr() {
@@ -85,13 +77,14 @@ public class Distinct extends Operator {
         Schema schm = base.getSchema(); 
 
         //get the index of the attributes 
-        for (Attribute attr in attr_list) {
-            indexList.add(schm.indexOf(attr)); 
+        for (Object attr : this.attr_list) {
+            indexList.add(schm.indexOf((Attribute) attr)); 
         }
 
         //perform sorting with external algorithm 
-        sortedbase = new ExternalSort(base, attr_list, numBuff, +1); 
+        sortedbase = new ExternalSort(base, attr_list, 1, OpType.SORT); 
         sortedbase.setSchema(schm);
+        sortedbase.setNumBuff(BufferManager.getNumBuffer());
 
         //sorted base based on attr. open it 
         //check 
@@ -102,7 +95,7 @@ public class Distinct extends Operator {
 
     public Batch next() {
         int cursor = 0;
-        System.out.println("~~~~~~~~~~~~~~~Order By~~~~~~~~~~~~~~")
+        System.out.println("~~~~~~~~~~~~~~~Distinct~~~~~~~~~~~~~~")
         if (eos) { //end of file stream, close operator 
             close();
             return null;  
@@ -144,7 +137,7 @@ public class Distinct extends Operator {
 
         return outbatch; 
     }
-    
+
     @Override
     public boolean close() { 
         //return distinct base
@@ -158,12 +151,13 @@ public class Distinct extends Operator {
         Operator newbase = (Operator) base.clone();
         ArrayList<Attribute> newattr_list = new ArrayList<>();
         for (int i = 0; i < attr_list.size(); i++) {
-            Attribute attribute = (Attribute) ((Attribute) attr_list.get(i)).clone();
+            Attribute attribute = (Attribute) (attr_list.get(i)).clone();
             newattr_list.add(attribute);
         }
-        Distinct newdsct = new Distinct(newbase, newattr_list, newtype);
-        newdsct.setNumBuff(newbase.getNumBuff());
-        newdsct.setSchema(newbase.getSchema());
+        Distinct newdsct = new Distinct(newbase, newattr_list, 1, OpType.DISTINCT);
+        Schema newSchema = newbase.getSchema().clone(); 
+        //newdsct.setNumBuff(NumBuff);
+        newdsct.setSchema(newSchema);
         return newdsct;
     }
 
